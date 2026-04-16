@@ -19,7 +19,7 @@
 			font-size: 0.875rem;
 		}
 		.dark .form-input-alt {
-			background-color: rgb(3 7 18);
+			background-color: rgb(11 15 25);
 			border-color: rgb(31 41 55);
 			color: rgb(229 231 235);
 		}
@@ -71,6 +71,15 @@
 			margin-left: auto;
 			margin-right: auto;
 			max-width: 1536px;
+		}
+
+		/* Match the exact Tailwind v4 gray-950 used on huggingface.co in dark mode: rgb(11, 15, 25).
+		   Tailwind v3 CDN resolves gray-950 to rgb(3,7,18) which is too dark, so force the value. */
+		html.dark,
+		html.dark body,
+		html.dark .dark\:bg-gray-950,
+		html.dark .bg-gray-950 {
+			background-color: rgb(11, 15, 25) !important;
 		}
 
 		/* Subtle floating — each icon drifts up/down with its own resting rotation,
@@ -352,7 +361,7 @@
 			</div>
 
 			<!-- Bottom fade to page bg -->
-			<div class="pointer-events-none absolute bottom-0 left-0 h-32 w-full" style="background-image: linear-gradient(to top, rgb(3 7 18) 0%, rgb(3 7 18 / 0.85) 30%, rgb(3 7 18 / 0.5) 60%, transparent 100%);"></div>
+			<div class="pointer-events-none absolute bottom-0 left-0 h-32 w-full" style="background-image: linear-gradient(to top, rgb(11 15 25) 0%, rgb(11 15 25 / 0.85) 30%, rgb(11 15 25 / 0.5) 60%, transparent 100%);"></div>
 		</section>
 
 		<section class="relative z-5 w-full bg-white dark:bg-gray-950">
