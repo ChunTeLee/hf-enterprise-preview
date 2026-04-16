@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth dark">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Team & Enterprise Plans - Hugging Face</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>
+		tailwind.config = { darkMode: 'class' };
+	</script>
+	<style>
+		body { font-family: Source Sans Pro, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+		/* form-input-alt — HF's custom input style */
+		.form-input-alt {
+			background-color: rgb(249 250 251);
+			border: 1px solid rgb(229 231 235);
+			border-radius: 0.5rem;
+			font-size: 0.875rem;
+		}
+		.dark .form-input-alt {
+			background-color: rgb(3 7 18);
+			border-color: rgb(31 41 55);
+			color: rgb(229 231 235);
+		}
+		.form-input-alt:focus {
+			outline: none;
+			border-color: rgb(156 163 175);
+		}
+
+		.aspect-16\/9 { aspect-ratio: 16 / 9; }
+		.aspect-16\/5 { aspect-ratio: 16 / 5; }
+
+		.polka-pattern {
+			background-image: radial-gradient(rgba(0,0,0,0.08) 1px, transparent 1px);
+			background-size: 16px 16px;
+			mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+			-webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+		}
+
+		/* Ribbon slideshow animations */
+		@keyframes ribbonSlide {
+			from { transform: translateX(0); }
+			to   { transform: translateX(-50%); }
+		}
+		@keyframes ribbonSlideReverse {
+			from { transform: translateX(-50%); }
+			to   { transform: translateX(0); }
+		}
+		.ribbon-animation__slideshow {
+			animation: ribbonSlide 60s linear infinite;
+			width: max-content;
+		}
+		.ribbon-animation__slideshow.reversed {
+			animation: ribbonSlideReverse 60s linear infinite;
+		}
+
+		/* Hero gradient backdrop */
+		.hero-glow {
+			background: radial-gradient(ellipse at top, rgba(255, 159, 10, 0.15), transparent 60%),
+			            radial-gradient(ellipse at bottom left, rgba(255, 206, 84, 0.12), transparent 50%);
+		}
+
+		.bg-linear-to-b {
+			background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
+		}
+
+		/* Container — approximates HF's .container (max-width responsive, centered) */
+		.container {
+			width: 100%;
+			margin-left: auto;
+			margin-right: auto;
+			max-width: 1536px;
+		}
+
+		/* Subtle floating — each icon drifts up/down with its own resting rotation,
+		   using a per-element CSS variable --rot. No scale distortion, eased sine-like curve. */
+		@keyframes float {
+			0%   { transform: translate3d(0, 0px,    0) rotate(var(--rot, 0deg)); }
+			50%  { transform: translate3d(0, -14px,  0) rotate(calc(var(--rot, 0deg) + 2deg)); }
+			100% { transform: translate3d(0, 0px,    0) rotate(var(--rot, 0deg)); }
+		}
+		.float-icon {
+			animation-name: float;
+			animation-iteration-count: infinite;
+			animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+			will-change: transform;
+		}
+
+		/* "Enterprise" wordmark gradient — matches source: from-black from-45% to-gray-400, dark:from-white dark:to-gray-400 */
+		.enterprise-gradient {
+			background-image: linear-gradient(to bottom, #000 45%, #9ca3af);
+		}
+		.dark .enterprise-gradient {
+			background-image: linear-gradient(to bottom, #ffffff 45%, #9ca3af);
+		}
+
+		/* ASCII text-pattern background — rendered via @chenglou/pretext variable-width layout.
+		   Each row is a container; chunks are absolutely-positioned <span>s that pretext lays out
+		   around each floating icon (the "floats" in shape-around-floats parlance). */
+		.hero-ascii {
+			position: absolute;
+			inset: 0;
+			pointer-events: none;
+			user-select: none;
+			overflow: hidden;
+			z-index: 0;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+			font-size: 11px;
+			line-height: 18px;
+			color: rgba(255,255,255,0.09);
+		}
+		.hero-ascii .chunk {
+			position: absolute;
+			white-space: pre;
+			top: 0;
+			left: 0;
+			will-change: transform;
+		}
+
+		/* Explicit text sizes for the floating icons — Tailwind's text-6xl etc. drive the SVG size since it uses width/height 1em */
+		.text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
+		.text-5xl { font-size: 3rem; line-height: 1; }
+		.text-6xl { font-size: 3.75rem; line-height: 1; }
+		.text-7xl { font-size: 4.5rem; line-height: 1; }
+		.text-8xl { font-size: 6rem; line-height: 1; }
+		.text-9xl { font-size: 8rem; line-height: 1; }
+		@media (min-width: 640px) {
+			.sm\:text-9xl { font-size: 8rem; line-height: 1; }
+		}
+	</style>
+</head>
+<body class="flex flex-col min-h-dvh bg-white dark:bg-gray-950 text-black EnterpriseHubPage">
+
+<!-- ========== HEADER (replicated from huggingface.co) ========== -->
+<header class="border-b border-gray-100 dark:border-gray-900">
+	<div class="w-full px-4 container flex h-16 items-center">
+		<div class="flex flex-1 items-center">
+			<!-- Logo -->
+			<a class="mr-5 flex flex-none items-center lg:mr-6" href="/">
+				<img alt="Hugging Face's logo" class="w-7 md:mr-2" src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" />
+				<span class="hidden whitespace-nowrap text-lg font-bold md:block dark:text-white">Hugging Face</span>
+			</a>
+
+			<!-- Search -->
+			<div class="relative flex-1 lg:max-w-sm mr-2 sm:mr-4 md:mr-3 xl:mr-6">
+				<input autocomplete="off" spellcheck="false" type="text"
+					class="w-full dark:bg-gray-950 pl-8 form-input-alt h-9 pr-3 focus:shadow-xl"
+					placeholder="Search models, datasets, users..." />
+				<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img"
+					width="1em" height="1em" viewBox="0 0 32 32"
+					class="absolute left-2.5 text-gray-400 top-1/2 transform -translate-y-1/2">
+					<path d="M30 28.59L22.45 21A11 11 0 1 0 21 22.45L28.59 30zM5 14a9 9 0 1 1 9 9 9 9 0 0 1-9-9z" fill="currentColor"></path>
+				</svg>
+			</div>
+		</div>
+
+		<nav aria-label="Main" class="ml-auto hidden lg:block">
+			<ul class="flex items-center gap-x-1 2xl:gap-x-2">
+				<!-- Models (indigo) -->
+				<li class="hover:text-indigo-700">
+					<a class="group flex items-center px-2 py-0.5 dark:text-gray-300 dark:hover:text-gray-100" href="/models">
+						<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" width="1em" height="1em" viewBox="0 0 24 24" class="mr-1.5 text-gray-400 group-hover:text-indigo-500">
+							<path d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
+							<path d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
+							<path d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
+						</svg>
+						Models
+					</a>
+				</li>
+				<!-- Datasets (red) -->
+				<li>
+					<a class="group flex items-center px-2 py-0.5 dark:text-gray-300 dark:hover:text-gray-100" href="/datasets">
+						<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" width="1em" height="1em" viewBox="0 0 25 25" class="mr-1.5 text-gray-400 group-hover:text-red-500">
+							<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
+							<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
+							<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
+							<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
+						</svg>
+						Datasets
+					</a>
+				</li>
+				<!-- Spaces (blue) -->
+				<li>
+					<a class="group flex items-center px-2 py-0.5 dark:text-gray-300 dark:hover:text-gray-100" href="/spaces">
+						<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" width="1em" height="1em" viewBox="0 0 25 25" class="mr-1.5 text-gray-400 group-hover:text-blue-500">
+							<path opacity=".5" d="M6.016 14.674v4.31h4.31v-4.31h-4.31ZM14.674 14.674v4.31h4.31v-4.31h-4.31ZM6.016 6.016v4.31h4.31v-4.31h-4.31Z" fill="currentColor"></path>
+							<path opacity=".75" fill-rule="evenodd" clip-rule="evenodd" d="M3 4.914C3 3.857 3.857 3 4.914 3h6.514c.884 0 1.628.6 1.848 1.414a5.171 5.171 0 0 1 7.31 7.31c.815.22 1.414.964 1.414 1.848v6.514A1.914 1.914 0 0 1 20.086 22H4.914A1.914 1.914 0 0 1 3 20.086V4.914Zm3.016 1.102v4.31h4.31v-4.31h-4.31Zm0 12.968v-4.31h4.31v4.31h-4.31Zm8.658 0v-4.31h4.31v4.31h-4.31Zm0-10.813a2.155 2.155 0 1 1 4.31 0 2.155 2.155 0 0 1-4.31 0Z" fill="currentColor"></path>
+						</svg>
+						Spaces
+					</a>
+				</li>
+				<!-- Buckets (blue, with NEW badge) -->
+				<li>
+					<a class="group flex items-center px-2 py-0.5 dark:text-gray-300 dark:hover:text-gray-100" href="/storage">
+						<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" width="1em" height="1em" viewBox="0 0 48 48" fill="none" class="mr-1.5 text-blue-600 dark:text-blue-500">
+							<path opacity="0.25" d="M36 4H12C7.58172 4 4 7.58172 4 12V36C4 40.4183 7.58172 44 12 44H36C40.4183 44 44 40.4183 44 36V12C44 7.58172 40.4183 4 36 4Z" fill="currentColor"></path>
+							<path opacity="0.5" d="M31 11H17C13.6863 11 11 13.6863 11 17V31C11 34.3137 13.6863 37 17 37H31C34.3137 37 37 34.3137 37 31V17C37 13.6863 34.3137 11 31 11Z" fill="currentColor"></path>
+							<path d="M27 18H21C19.3431 18 18 19.3431 18 21V27C18 28.6569 19.3431 30 21 30H27C28.6569 30 30 28.6569 30 27V21C30 19.3431 28.6569 18 27 18Z" fill="currentColor"></path>
+						</svg>
+						Buckets
+						<span class="ml-1.5 rounded-sm bg-blue-500/10 px-1 text-[10px] font-semibold uppercase leading-none text-blue-600 dark:bg-blue-500/20 dark:text-blue-400" style="padding-top:2px;padding-bottom:2px;">new</span>
+					</a>
+				</li>
+				<!-- Docs (yellow) -->
+				<li>
+					<a class="group flex items-center px-2 py-0.5 dark:text-gray-300 dark:hover:text-gray-100" href="/docs">
+						<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 16 16" class="mr-1.5 text-gray-400 group-hover:text-yellow-500">
+							<path d="m2.28 3.7-.3.16a.67.67 0 0 0-.34.58v8.73l.01.04.02.07.01.04.03.06.02.04.02.03.04.06.05.05.04.04.06.04.06.04.08.04.08.02h.05l.07.02h.11l.04-.01.07-.02.03-.01.07-.03.22-.12a5.33 5.33 0 0 1 5.15.1.67.67 0 0 0 .66 0 5.33 5.33 0 0 1 5.33 0 .67.67 0 0 0 1-.58V4.36a.67.67 0 0 0-.34-.5l-.3-.17v7.78a.63.63 0 0 1-.87.59 4.9 4.9 0 0 0-4.35.35l-.65.39a.29.29 0 0 1-.15.04.29.29 0 0 1-.16-.04l-.65-.4a4.9 4.9 0 0 0-4.34-.34.63.63 0 0 1-.87-.59V3.7Z" fill="currentColor" class="dark:opacity-40"></path>
+							<path fill-rule="evenodd" clip-rule="evenodd" d="M8 3.1a5.99 5.99 0 0 0-5.3-.43.66.66 0 0 0-.42.62v8.18c0 .45.46.76.87.59a4.9 4.9 0 0 1 4.34.35l.65.39c.05.03.1.04.16.04.05 0 .1-.01.15-.04l.65-.4a4.9 4.9 0 0 1 4.35-.34.63.63 0 0 0 .86-.59V3.3a.67.67 0 0 0-.41-.62A5.99 5.99 0 0 0 8 3.1Zm0 1.3v7.49a6.96 6.96 0 0 0-4.5-.4V3.7a5 5 0 0 1 4.5.7Zm.5 7.49V4.4a5 5 0 0 1 4.5-.7v7.8a6.96 6.96 0 0 0-4.5.4Z" fill="currentColor"></path>
+						</svg>
+						Docs
+					</a>
+				</li>
+				<!-- Enterprise (black/white) -->
+				<li>
+					<a class="group flex items-center px-2 py-0.5 dark:text-gray-300 dark:hover:text-gray-100" href="/enterprise">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true" focusable="false" role="img" width="1em" height="1em" viewBox="0 0 12 12" class="mr-1.5 text-gray-400 group-hover:text-black dark:group-hover:text-white">
+							<path fill-rule="evenodd" clip-rule="evenodd" d="M4.9 1.35a3.16 3.16 0 0 0-2.8 2.07L.37 8.58C0 9.71.7 10.65 1.86 10.65H7.3a3.2 3.2 0 0 0 2.84-2.07l1.67-5.16c.36-1.13-.3-2.07-1.46-2.07H4.91Zm.4 2.07L3.57 8.47h3.57l.36-1.12H5.4l.28-.91h1.75l.4-1.1H6.07l.3-.83h2l.36-1.1H5.27h.04Z" fill="currentColor"></path>
+						</svg>
+						Enterprise
+					</a>
+				</li>
+				<!-- Pricing (no icon) -->
+				<li>
+					<a class="group flex items-center px-2 py-0.5 dark:text-gray-300 dark:hover:text-gray-100" href="/pricing">Pricing</a>
+				</li>
+				<!-- Language switcher (en/zh) -->
+				<li>
+					<button class="group flex items-center px-2 py-0.5 dark:text-gray-300 dark:hover:text-gray-100" title="Language">
+						<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="1em" height="1em" viewBox="0 0 16 16" class="text-gray-400">
+							<path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 1.2a6 6 0 0 1 4.47 2H11.3a9.6 9.6 0 0 0-.68-1.47A5.9 5.9 0 0 1 8 2.2ZM5.38 3.73A8.3 8.3 0 0 0 4.7 5.2H3.53a6 6 0 0 1 1.85-1.47ZM2.76 6.4h1.6A11 11 0 0 0 4.2 8c0 .55.04 1.09.16 1.6H2.76a6 6 0 0 1 0-3.2Zm.77 4.4h1.17a8.3 8.3 0 0 0 .68 1.47A6 6 0 0 1 3.53 10.8Zm2-1.2A10 10 0 0 1 5.4 8c0-.55.04-1.09.14-1.6h5.04c.1.51.14 1.05.14 1.6a10 10 0 0 1-.14 1.6H5.52ZM8 13.8a5.9 5.9 0 0 1-2.62-.73c.2-.52.43-1.01.68-1.47h3.88c.25.46.47.95.68 1.47A5.9 5.9 0 0 1 8 13.8Zm2.62-9.6A9.6 9.6 0 0 0 11.3 5.2h-1.17a8.3 8.3 0 0 0-.68-1.47c.51.16.99.41 1.47.74Zm.26 5.4h1.36a6 6 0 0 1-1.85 1.47c.25-.46.47-.95.68-1.47ZM13.24 9.6h-1.6c.12-.51.16-1.05.16-1.6 0-.55-.04-1.09-.16-1.6h1.6a6 6 0 0 1 0 3.2Z" fill="currentColor"></path>
+						</svg>
+					</button>
+				</li>
+				<li><hr class="h-5 w-0.5 border-none bg-gray-100 dark:bg-gray-800" /></li>
+				<li><a class="block cursor-pointer whitespace-nowrap px-2 py-0.5 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-100" href="/login">Log In</a></li>
+				<li><a class="whitespace-nowrap rounded-full border border-transparent bg-gray-900 px-3 py-1 leading-none text-white hover:border-black hover:bg-white hover:text-black dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100" href="/join">Sign Up</a></li>
+			</ul>
+		</nav>
+	</div>
+</header>
+
+<div class="relative min-h-screen overflow-clip bg-white dark:bg-gray-950">
+
+	<!-- ========== HERO (pixel-accurate replica of HeroHeader) ========== -->
+	<div class="border-b border-gray-100 dark:border-gray-900 px-4">
+		<section id="hero-section" class="relative mx-auto flex max-w-7xl flex-col items-center text-balance border-l border-r border-gray-100 dark:border-gray-900 px-4 pb-0 pt-8 sm:px-6 sm:pt-12 lg:px-8">
+
+			<!-- ASCII text pattern — flows around floating icons (pretext-style variable-width layout) -->
+			<div id="hero-ascii-base" class="hero-ascii" aria-hidden="true"></div>
+
+			<!-- Floating shape 1: Models cube -->
+			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 24 24" data-float="1" class="text-6xl absolute top-16 left-12 sm:left-24 float-icon dark:text-gray-500" style="--rot:-12deg;animation-duration:9s;animation-delay:-1s;">
+				<path class="uim-quaternary" d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
+				<path class="uim-tertiary" d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
+				<path class="uim-primary" d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
+			</svg>
+
+			<!-- Floating shape 2: Datasets cylinder -->
+			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 25 25" data-float="2" class="text-4xl absolute top-40 left-0 float-icon dark:text-gray-500" style="--rot:8deg;animation-duration:7s;animation-delay:-3s;">
+				<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
+				<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
+				<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
+				<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
+			</svg>
+
+			<!-- Floating shape 3: Models cube -->
+			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 24 24" data-float="3" class="text-6xl absolute bottom-24 -left-16 float-icon dark:text-gray-500" style="--rot:18deg;animation-duration:8.5s;animation-delay:-5s;">
+				<path class="uim-quaternary" d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
+				<path class="uim-tertiary" d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
+				<path class="uim-primary" d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
+			</svg>
+
+			<!-- Floating shape 4: Datasets cylinder (large) -->
+			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 25 25" data-float="4" class="text-7xl sm:text-9xl absolute bottom-6 sm:-bottom-12 -left-6 sm:left-12 float-icon dark:text-gray-500" style="--rot:-6deg;animation-duration:10s;animation-delay:-2s;">
+				<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
+				<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
+				<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
+				<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
+			</svg>
+
+			<!-- Floating shape 5: Models cube (large, right) -->
+			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 24 24" data-float="5" class="text-9xl absolute top-0 sm:top-12 right-12 float-icon dark:text-gray-500" style="--rot:15deg;animation-duration:11s;animation-delay:-4s;">
+				<path class="uim-quaternary" d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
+				<path class="uim-tertiary" d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
+				<path class="uim-primary" d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
+			</svg>
+
+			<!-- Floating shape 6: Datasets cylinder (right) -->
+			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 25 25" data-float="6" class="text-5xl absolute top-40 2xl:top-52 -right-12 float-icon dark:text-gray-500" style="--rot:-10deg;animation-duration:7.5s;animation-delay:-6s;">
+				<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
+				<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
+				<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
+				<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
+			</svg>
+
+			<!-- Floating shape 7: Models cube (bottom right) -->
+			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 24 24" data-float="7" class="text-7xl absolute bottom-16 right-0 float-icon dark:text-gray-500" style="--rot:24deg;animation-duration:9.5s;animation-delay:-1.5s;">
+				<path class="uim-quaternary" d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
+				<path class="uim-tertiary" d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
+				<path class="uim-primary" d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
+			</svg>
+
+			<!-- Floating shape 8: Datasets cylinder (bottom right, hidden on mobile) -->
+			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 25 25" data-float="8" class="text-8xl absolute max-sm:hidden -bottom-12 right-24 float-icon dark:text-gray-500" style="--rot:4deg;animation-duration:8s;animation-delay:-7s;">
+				<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
+				<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
+				<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
+				<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
+			</svg>
+
+			<!-- Hero content -->
+			<div class="relative px-2 py-12 text-center sm:px-12 sm:py-16 lg:px-16 lg:py-20">
+				<h1 class="relative mb-4 text-pretty text-5xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-6xl md:text-7xl">
+					Hugging Face
+					<span class="relative inline-block">
+						<span class="enterprise-gradient relative bg-clip-text font-bold text-transparent">Enterprise</span>
+					</span>
+				</h1>
+				<p class="relative mb-6 text-2xl text-gray-600 dark:text-gray-400 xl:mb-12">
+					Scale your organization with the world’s leading AI platform
+				</p>
+
+				<div class="mx-auto flex w-full flex-col items-center justify-center gap-2 sm:gap-3 md:flex-row md:gap-4">
+					<!-- Team button -->
+					<div class="flex flex-col gap-2.5">
+						<a href="#" class="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-black px-6 py-1.5 text-lg text-white ring-1 ring-gray-300 ring-offset-4 transition-all hover:ring-black dark:bg-gray-300 dark:text-black dark:ring-gray-300 dark:ring-offset-gray-950">
+							Subscribe to
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 12 12">
+								<path fill-rule="evenodd" clip-rule="evenodd" d="M4.9 1.39a3.16 3.16 0 0 0-2.8 2.07L.35 8.63C0 9.75.68 10.7 1.85 10.7H7.3a3.2 3.2 0 0 0 2.83-2.07l1.68-5.17c.36-1.12-.3-2.07-1.46-2.07H4.9Zm-.73 2.07-.4 1.16h2.08l-1.3 3.9h1.47l.35-1.13.3-.9.4-1.1.28-.77h2l.37-1.16H4.17Z" fill="currentColor"></path>
+							</svg>
+							Team
+						</a>
+						<p class="text-gray-500">starting at $20/user/month</p>
+					</div>
+
+					<div class="-mt-8 text-gray-500 max-md:hidden">or</div>
+
+					<!-- Enterprise button -->
+					<div class="flex flex-col gap-2.5">
+						<a href="#" class="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-gray-200 px-6 py-1.5 text-lg text-gray-900 ring-1 ring-gray-300 ring-offset-4 transition-all hover:ring-gray-500 dark:bg-gray-600 dark:text-gray-300 dark:ring-gray-600 dark:ring-offset-gray-950">
+							Contact sales for
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 12 12">
+								<path fill-rule="evenodd" clip-rule="evenodd" d="M4.9 1.35a3.16 3.16 0 0 0-2.8 2.07L.37 8.58C0 9.71.7 10.65 1.86 10.65H7.3a3.2 3.2 0 0 0 2.84-2.07l1.67-5.16c.36-1.13-.3-2.07-1.46-2.07H4.91Zm.4 2.07L3.57 8.47h3.57l.36-1.12H5.4l.28-.91h1.75l.4-1.1H6.07l.3-.83h2l.36-1.1H5.27h.04Z" fill="currentColor"></path>
+							</svg>
+							Enterprise
+						</a>
+						<p class="text-gray-500">to explore flexible contract options</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Bottom fade to page bg -->
+			<div class="pointer-events-none absolute bottom-0 left-0 h-32 w-full" style="background-image: linear-gradient(to top, rgb(3 7 18) 0%, rgb(3 7 18 / 0.85) 30%, rgb(3 7 18 / 0.5) 60%, transparent 100%);"></div>
+		</section>
+
+		<section class="relative z-5 w-full bg-white dark:bg-gray-950">
+			<div class="relative z-1 mx-auto flex w-full max-w-7xl items-center justify-center border-l border-r border-t border-gray-100 dark:border-gray-900 px-6 py-3 text-center md:px-10 md:py-5">
+				<p class="text-balance text-gray-500">
+					Give your organization the most advanced platform to build AI with
+					<span class="text-black dark:text-white">enterprise-grade security, access controls, dedicated support</span> and more.
+				</p>
+			</div>
+		</section>
+	</div>
+
+	<div class="h-20 md:h-28"></div>
+
+	<!-- ========== BENTO ========== -->
+	<section class="w-full border-b border-gray-100 dark:border-gray-900 px-4">
+		<article class="relative mx-auto max-w-7xl overflow-hidden border-l border-r border-gray-100 dark:border-gray-900 bg-white dark:bg-gray-950">
+			<div class="relative p-5">
+				<div class="-mb-px -mr-px grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" id="features-grid">
+					<!-- features injected here -->
+				</div>
+				<!-- Dashed corner decorations -->
+				<div class="pointer-events-none absolute left-0 top-0 h-full w-5 border-r border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
+				<div class="pointer-events-none absolute left-0 top-0 h-5 w-full border-b border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
+				<div class="pointer-events-none absolute right-0 top-0 h-5 w-5 border-l border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
+				<div class="pointer-events-none absolute bottom-0 right-0 h-5 w-5 border-l border-t border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
+				<div class="pointer-events-none absolute bottom-0 left-0 h-5 w-5 border-t border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
+			</div>
+		</article>
+	</section>
+
+	<div class="h-20 md:h-28"></div>
+
+	<!-- ========== CTA ========== -->
+	<section class="w-full border-b border-gray-100 dark:border-gray-900 px-4">
+		<div class="relative mx-auto max-w-7xl overflow-hidden border-l border-r border-gray-100 dark:border-gray-900 bg-white dark:bg-gray-950">
+			<div class="relative z-0 overflow-hidden px-8 pb-12 pt-16 text-center sm:pb-16 sm:pt-20">
+				<h2 class="relative mb-3 text-4xl font-black tracking-tight text-gray-900 dark:text-white xl:text-5xl">
+					Join the most
+					<span class="bg-linear-to-b relative from-black to-gray-400 bg-clip-text font-bold text-transparent dark:from-white dark:to-gray-400" style="--tw-gradient-stops: currentColor 45%, #9ca3af;">
+						forward-thinking
+					</span>
+					AI organizations
+				</h2>
+				<p class="relative text-xl text-gray-600 dark:text-gray-400 sm:text-2xl">
+					Everything you already know and love about Hugging Face in Enterprise mode.
+				</p>
+				<div class="mx-auto mt-10 flex w-full flex-col items-center justify-center gap-2 sm:gap-3 md:flex-row md:gap-4">
+					<a href="#" class="rounded-xl bg-gray-900 px-6 py-3 text-sm font-semibold text-white hover:bg-black">Get Enterprise Hub → $20 / user / month</a>
+					<a href="#" class="rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50">Contact sales</a>
+				</div>
+				<div class="polka-pattern absolute inset-0 left-0 top-0 -z-1 h-full w-full"></div>
+			</div>
+		</div>
+	</section>
+
+	<div class="h-20 md:h-28"></div>
+
+	<!-- ========== SHOWCASE ORGANIZATIONS ========== -->
+	<section class="w-full px-4">
+		<div class="relative mx-auto grid max-w-7xl grid-cols-1 gap-5 overflow-hidden border-l border-r border-gray-100 dark:border-gray-900 py-5" id="orgs-container">
+			<!-- ribbon rows injected here -->
+		</div>
+	</section>
+
+	<!-- ========== COMPLIANCE ========== -->
+	<section class="w-full px-4">
+		<div class="border-t border-gray-100 dark:border-gray-900 px-4">
+			<div class="relative z-10 mx-auto flex max-w-7xl items-center justify-center gap-3 border-l border-r border-gray-100 dark:border-gray-900 px-6 py-5">
+				<img src="https://cdn-media.huggingface.co/marketing/pmh-page/soc2.png" alt="SOC 2 Type II" title="SOC 2 Type II certified" class="h-8 opacity-65 transition-opacity hover:opacity-100" />
+				<span class="text-xs text-gray-300">|</span>
+				<img src="https://cdn-media.huggingface.co/marketing/pmh-page/gdpr.png" alt="GDPR Compliant" title="GDPR compliant" class="h-8 opacity-65 transition-opacity hover:opacity-100" />
+			</div>
+		</div>
+	</section>
+
+	<!-- ========== FOOTER (simplified) ========== -->
+	<footer class="mt-20 border-t border-gray-100 dark:border-gray-900 bg-gray-50">
+		<div class="mx-auto max-w-7xl px-6 py-12 text-sm text-gray-500">
+			<div class="flex flex-col items-start justify-between gap-6 md:flex-row">
+				<div>
+					<div class="mb-2 flex items-center gap-2"><span class="text-2xl">🤗</span><span class="font-semibold text-gray-900">Hugging Face</span></div>
+					<p>The AI community building the future.</p>
+				</div>
+				<div class="text-xs">© 2026 Hugging Face — Enterprise preview mock</div>
+			</div>
+		</div>
+	</footer>
+</div>
+
+<script>
+	// ---------- Feature data (verbatim from Svelte source) ----------
+	const BASE = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/enterprise/";
+	const mk = (slug) => ({ image: BASE + slug + ".png", imageDark: BASE + "dark-" + slug + ".png" });
+	const FEATURES = [
+		{ title:"Single Sign-On", href:"/docs/hub/enterprise-sso", description:"Connect securely to your identity provider with SSO integration.", ...mk("SSO"), isWide:false, requiresEnterprise:false },
+		{ title:"Regions", href:"/docs/hub/storage-regions", description:"Select, manage, and audit the location of your repository data.", ...mk("regions"), isWide:false, requiresEnterprise:false },
+		{ title:"Audit Logs", href:"/docs/hub/audit-logs", description:"Stay in control with comprehensive logs that report on actions taken.", ...mk("audit-logs"), isWide:false, requiresEnterprise:false },
+		{ title:"Resource Groups", href:"/docs/hub/enterprise-hub-resource-groups", description:"Accurately manage access to repositories with granular access control.", ...mk("resource-groups"), isWide:false, requiresEnterprise:false },
+		{ title:"Token Management", href:"/docs/hub/enterprise-hub-tokens-management", description:"Centralized token control and custom approval policies for organization access.", ...mk("tokens-management"), isWide:false, requiresEnterprise:false },
+		{ title:"Analytics", href:"/docs/hub/enterprise-hub-analytics", description:"Track and analyze repository usage data in a single dashboard.", ...mk("repository-analytics"), isWide:false, requiresEnterprise:false },
+		{ title:"Advanced Compute Options", href:"/docs/hub/spaces-gpus", description:"Increase scalability and performance with more compute options like ZeroGPU.", ...mk("advanced-compute-options-zero"), isWide:false, requiresEnterprise:false },
+		{ title:"ZeroGPU Quota Boost", href:"/docs/hub/spaces-zerogpu", description:"All organization members get 5x more ZeroGPU quota to get the most of Spaces.", ...mk("zerogpu"), isWide:false, requiresEnterprise:false },
+		{ title:"Private Datasets Viewer", href:"/docs/hub/enterprise-hub-datasets", description:"Enable the Dataset Viewer on your private datasets for easier collaboration.", ...mk("private-dataset-viewer"), isWide:false, requiresEnterprise:false },
+		{ title:"Private Storage", href:"/docs/hub/en/storage-limits", description:"Get an additional 1 TB of private storage for each member of your organization (then $25/month per extra TB).", ...mk("enterprise-private-storage"), isWide:true, requiresEnterprise:false },
+		{ title:"Inference Providers", href:"/docs/inference-providers", description:"Enable organization billing for Inference Providers, monitor usage with analytics, and manage spending limits.", ...mk("inference-providers"), isWide:false, requiresEnterprise:false },
+		{ title:"Advanced security", href:"/docs/hub/enterprise-hub-advanced-security", description:"Configure organization-wide security policies and default repository visibility.", ...mk("advanced-security"), isWide:false, requiresEnterprise:false },
+		{ title:"Billing", href:"/docs/hub/en/billing#enterprise-hub-subscriptions", description:"Control your budget effectively with managed billing and yearly commit options.", ...mk("billing"), isWide:false, requiresEnterprise:true },
+		{ title:"Priority Support", href:"/support", description:"Maximize your platform usage with priority support from the Hugging Face team.", ...mk("support"), isWide:false, requiresEnterprise:true },
+	];
+
+	// Small inline SVG icons to stand in for <IconTeam /> and <IconEnterprise />
+	const iconTeam = (faded) => `
+		<svg class="ml-auto h-4 w-4 text-gray-400 ${faded ? 'opacity-20' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+			<circle cx="9" cy="7" r="4"/>
+			<path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+			<path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+		</svg>`;
+	const iconEnterprise = `
+		<svg class="ml-1 h-4 w-4 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+			<path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+		</svg>`;
+
+	const grid = document.getElementById('features-grid');
+	grid.innerHTML = FEATURES.map(f => `
+		<div class="relative flex flex-col border-b border-r border-dashed border-gray-200/70 dark:border-gray-800/70 p-5 ${f.isWide ? 'md:col-span-2' : ''}">
+			<div class="aspect-16/9 overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800 ${f.isWide ? 'md:aspect-16/5' : ''}">
+				<img src="${f.image}" alt="${f.description}" class="h-full w-full select-none object-cover dark:hidden ${f.isWide ? 'object-left' : ''}" loading="lazy"/>
+				<img src="${f.imageDark}" alt="${f.description}" class="hidden h-full w-full select-none object-cover dark:block ${f.isWide ? 'object-left' : ''}" loading="lazy"/>
+			</div>
+			<a href="${f.href}" target="_blank" class="group mt-5">
+				<h2 class="mb-2 flex items-center text-lg font-semibold text-gray-900 dark:text-white decoration-gray-300 underline-offset-4 group-hover:underline dark:decoration-gray-500">
+					${f.title}
+					${iconTeam(f.requiresEnterprise)}
+					${iconEnterprise}
+				</h2>
+				<p class="text-sm text-gray-500">${f.description}</p>
+			</a>
+		</div>
+	`).join('');
+
+	// ---------- Showcase organizations (mock) ----------
+	const ORGS = [
+		{ name:"Meta AI", handle:"facebook", avatar:"https://huggingface.co/facebook/avatar.png", fallback:"M", color:"#1877F2", members:1200, models:380 },
+		{ name:"Google", handle:"google", avatar:"https://huggingface.co/google/avatar.png", fallback:"G", color:"#4285F4", members:950, models:410 },
+		{ name:"Microsoft", handle:"microsoft", avatar:"https://huggingface.co/microsoft/avatar.png", fallback:"M", color:"#0078D4", members:820, models:260 },
+		{ name:"NVIDIA", handle:"nvidia", avatar:"https://huggingface.co/nvidia/avatar.png", fallback:"N", color:"#76B900", members:610, models:190 },
+		{ name:"Intel", handle:"Intel", avatar:"https://huggingface.co/Intel/avatar.png", fallback:"I", color:"#0071C5", members:310, models:140 },
+		{ name:"Amazon", handle:"amazon", avatar:"https://huggingface.co/amazon/avatar.png", fallback:"A", color:"#FF9900", members:540, models:155 },
+		{ name:"IBM", handle:"ibm", avatar:"https://huggingface.co/ibm/avatar.png", fallback:"I", color:"#054ADA", members:480, models:175 },
+		{ name:"Stability AI", handle:"stabilityai", avatar:"https://huggingface.co/stabilityai/avatar.png", fallback:"S", color:"#6B46C1", members:220, models:90 },
+		{ name:"Mistral AI", handle:"mistralai", avatar:"https://huggingface.co/mistralai/avatar.png", fallback:"M", color:"#FF7000", members:180, models:42 },
+		{ name:"Cohere", handle:"CohereForAI", avatar:"https://huggingface.co/CohereForAI/avatar.png", fallback:"C", color:"#39594D", members:160, models:38 },
+		{ name:"Databricks", handle:"databricks", avatar:"https://huggingface.co/databricks/avatar.png", fallback:"D", color:"#FF3621", members:290, models:55 },
+		{ name:"Writer", handle:"Writer", avatar:"https://huggingface.co/Writer/avatar.png", fallback:"W", color:"#5E3CCE", members:95, models:28 },
+		{ name:"BigScience", handle:"bigscience", avatar:"https://huggingface.co/bigscience/avatar.png", fallback:"B", color:"#F59E0B", members:450, models:88 },
+		{ name:"Salesforce", handle:"Salesforce", avatar:"https://huggingface.co/Salesforce/avatar.png", fallback:"S", color:"#00A1E0", members:380, models:72 },
+		{ name:"Qualcomm", handle:"qualcomm", avatar:"https://huggingface.co/qualcomm/avatar.png", fallback:"Q", color:"#3253DC", members:220, models:120 },
+	];
+
+	function orgPill(o) {
+		return `
+			<a href="#" class="group flex shrink-0 items-center gap-3 pl-5 pr-5 py-2">
+				<span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white" style="background:${o.color}">
+					<span>${o.fallback}</span>
+				</span>
+				<span class="flex flex-col leading-tight">
+					<span class="text-sm font-semibold text-gray-900 dark:text-white group-hover:underline">${o.name}</span>
+					<span class="text-xs text-gray-500">${o.members.toLocaleString()} members · ${o.models} models</span>
+				</span>
+			</a>
+		`;
+	}
+
+	// Split into three rows (acc[i % 3])
+	const rows = [[], [], []];
+	ORGS.forEach((o, i) => rows[i % 3].push(o));
+
+	document.getElementById('orgs-container').innerHTML = rows.map((row, idx) => {
+		// Duplicate content once so the marquee can loop
+		const items = [...row, ...row].map(orgPill).join('');
+		return `
+			<div class="ribbon-animation__slideshow flex flex-nowrap justify-center divide-x divide-dashed divide-gray-100 ${idx % 2 === 0 ? 'reversed' : ''}">
+				${items}
+			</div>
+		`;
+	}).join('');
+
+	// ---------- @chenglou/pretext variable-width layout (real library, via ESM CDN) ----------
+	// Flow the ASCII pattern around each floating icon using pretext's low-level
+	// layoutNextLineRange — which is pretext's answer to "text with variable max-width per line".
+	// We split each visual row into left-of-obstacle + right-of-obstacle sub-rows, using
+	// pretext to fit the maximum-possible prefix that fits the available width on each side.
+	(async () => {
+		const host = document.getElementById('hero-ascii-base');
+		const hero = document.getElementById('hero-section');
+		if (!host || !hero) return;
+
+		let pretext;
+		try {
+			pretext = await import('https://esm.sh/@chenglou/pretext@0.0.5');
+		} catch (e) {
+			console.error('Failed to load @chenglou/pretext from esm.sh:', e);
+			return;
+		}
+		const { prepareWithSegments, layoutNextLineRange, materializeLineRange } = pretext;
+
+		// ---------- Build per-icon silhouettes by rasterizing each SVG ----------
+		// For each floating icon we rasterize its current SVG into an offscreen canvas,
+		// then for each horizontal pixel row we find the leftmost + rightmost opaque pixel.
+		// Stored as normalized [l, r] pairs in [0..1] so we can scale to live icon size per frame.
+		async function silhouetteFor(iconEl) {
+			// Size the canvas high enough to resolve the shape but cheap enough to rasterize.
+			const W = 96, H = 96;
+			// Clone the SVG, strip color overrides, paint it solid so every opaque pixel is a hit.
+			const svg = iconEl.cloneNode(true);
+			svg.removeAttribute('class');
+			svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+			svg.setAttribute('width', W);
+			svg.setAttribute('height', H);
+			// Normalize rotation (the live icon has --rot + animation rotation; we bake the base rot).
+			const rot = getComputedStyle(iconEl).getPropertyValue('--rot').trim() || '0deg';
+			// Wrap paths in a <g> that applies the rotation around the viewBox center.
+			const vb = svg.getAttribute('viewBox').split(/\s+/).map(Number);
+			const cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2;
+			const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+			g.setAttribute('transform', `rotate(${parseFloat(rot)} ${cx} ${cy})`);
+			while (svg.firstChild) g.appendChild(svg.firstChild);
+			svg.appendChild(g);
+			// Force all paths to solid black for a binary silhouette.
+			svg.querySelectorAll('path, ellipse').forEach(p => {
+				p.setAttribute('fill', '#000');
+				p.setAttribute('opacity', '1');
+				p.removeAttribute('class');
+			});
+			const str = new XMLSerializer().serializeToString(svg);
+			const img = await new Promise((res, rej) => {
+				const im = new Image();
+				im.onload = () => res(im);
+				im.onerror = rej;
+				im.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(str)));
+			});
+			const cv = document.createElement('canvas');
+			cv.width = W; cv.height = H;
+			const ctx = cv.getContext('2d');
+			ctx.drawImage(img, 0, 0, W, H);
+			const data = ctx.getImageData(0, 0, W, H).data;
+			// For each row, find left + right extents of opaque pixels (alpha > threshold).
+			const rows = [];
+			for (let y = 0; y < H; y++) {
+				let left = -1, right = -1;
+				for (let x = 0; x < W; x++) {
+					const a = data[(y * W + x) * 4 + 3];
+					if (a > 20) {
+						if (left === -1) left = x;
+						right = x;
+					}
+				}
+				rows.push(left === -1 ? null : [left / W, (right + 1) / W]);
+			}
+			return { W, H, rows };
+		}
+
+		// Rasterize all 8 icons in parallel.
+		const iconEls = Array.from(document.querySelectorAll('[data-float]'));
+		const silhouettes = await Promise.all(iconEls.map(silhouetteFor));
+
+		// One long source string of punctuation tokens (same alphabet HF storage uses).
+		const CHAR_SET = '. : ; + = ( ~ @ # % & * ? / < > [ ] { } | ^ $ !';
+		const tokens = CHAR_SET.split(' ');
+		const FONT = '11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+		const CELL_H = 18;
+
+		// Build a different prepared handle per row by rotating the token sequence —
+		// pretext's prepare phase is cheap and the handles are reusable for that row's
+		// repeated per-frame layout. This also gives each row its own visual offset.
+		const ROW_SEEDS = 12;
+		const prepareds = [];
+		for (let s = 0; s < ROW_SEEDS; s++) {
+			const shifted = tokens.slice(s % tokens.length).concat(tokens.slice(0, s % tokens.length));
+			const src = (shifted.join(' ') + ' ').repeat(400);
+			prepareds.push({ handle: prepareWithSegments(src, FONT), src });
+		}
+
+		// Run pretext to fit the widest possible prefix of `prepSlot.handle` into `availW`,
+		// starting from `cursor`. Returns { text, endCursor } or null.
+		function fitPrefix(prepSlot, cursor, availW) {
+			if (availW <= 0) return null;
+			const range = layoutNextLineRange(prepSlot.handle, cursor, availW);
+			if (!range) return null;
+			const line = materializeLineRange(prepSlot.handle, range);
+			return { text: line.text, endCursor: range.end };
+		}
+
+		// Build row containers (absolute <span> chunks inside each row).
+		function buildRows() {
+			host.innerHTML = '';
+			const heroRect = hero.getBoundingClientRect();
+			const rowCount = Math.ceil(heroRect.height / CELL_H) + 2;
+			const frag = document.createDocumentFragment();
+			for (let i = 0; i < rowCount; i++) {
+				const row = document.createElement('div');
+				row.style.position = 'absolute';
+				row.style.left = '0';
+				row.style.right = '0';
+				row.style.top = (i * CELL_H) + 'px';
+				row.style.height = CELL_H + 'px';
+				frag.appendChild(row);
+			}
+			host.appendChild(frag);
+			return Array.from(host.children);
+		}
+		let rows = buildRows();
+
+		const icons = Array.from(document.querySelectorAll('[data-float]'));
+
+		// Layout a single row: gather obstacles at this Y, split the row into horizontal
+		// free-space segments, then use pretext to fit a prefix of SOURCE in each segment.
+		function layoutRow(rowEl, rowIdx, obstacles, maxW) {
+			// Merge & sort obstacles.
+			obstacles.sort((a, b) => a[0] - b[0]);
+
+			// Build list of free-space segments along this row.
+			const segments = [];
+			let cursorX = 0;
+			for (const [a, b] of obstacles) {
+				if (a > cursorX) segments.push([cursorX, Math.min(a, maxW)]);
+				cursorX = Math.max(cursorX, b);
+				if (cursorX >= maxW) break;
+			}
+			if (cursorX < maxW) segments.push([cursorX, maxW]);
+
+			// Pick a per-row prepared handle (different token rotation per row).
+			const prepSlot = prepareds[rowIdx % prepareds.length];
+			let ptCursor = { segmentIndex: 0, graphemeIndex: 0 };
+
+			// Fit a prefix in each free-space segment via pretext's layoutNextLineRange.
+			const chunks = [];
+			for (const [x0, x1] of segments) {
+				const availW = x1 - x0;
+				const fit = fitPrefix(prepSlot, ptCursor, availW);
+				if (!fit) continue;
+				chunks.push({ x: x0, text: fit.text });
+				ptCursor = fit.endCursor;
+			}
+
+			// Reconcile with existing DOM chunks in this row.
+			const existing = rowEl.children;
+			for (let i = 0; i < chunks.length; i++) {
+				let el = existing[i];
+				if (!el) {
+					el = document.createElement('span');
+					el.className = 'chunk';
+					rowEl.appendChild(el);
+				}
+				const c = chunks[i];
+				if (el.textContent !== c.text) el.textContent = c.text;
+				el.style.transform = 'translateX(' + c.x + 'px)';
+			}
+			// Remove extras.
+			while (existing.length > chunks.length) rowEl.removeChild(existing[existing.length - 1]);
+		}
+
+		function tick() {
+			const heroRect = hero.getBoundingClientRect();
+			const maxW = heroRect.width;
+
+			// For every icon grab live rect, pair with its silhouette, and apply an outward
+			// padding so the text never kisses the shape's edge.
+			const iconShapes = [];
+			for (let k = 0; k < icons.length; k++) {
+				const r = icons[k].getBoundingClientRect();
+				if (r.width === 0) continue;
+				const localLeft = r.left - heroRect.left;
+				const localRight = r.right - heroRect.left;
+				// Only hide icons whose center lies outside the hero's horizontal bounds —
+				// i.e. the ones sitting on the left/right exterior of the section.
+				const centerX = (localLeft + localRight) / 2;
+				const outsideSides = centerX < 0 || centerX > maxW;
+				icons[k].style.visibility = outsideSides ? 'hidden' : '';
+				if (outsideSides) continue;
+				iconShapes.push({
+					top: r.top - heroRect.top,
+					height: r.height,
+					left: r.left - heroRect.left,
+					width: r.width,
+					// Generous horizontal pad so no character bleeds under the silhouette edge.
+					padX: 14,
+					padY: 4,
+					silhouette: silhouettes[k],
+				});
+			}
+
+			for (let i = 0; i < rows.length; i++) {
+				const y = i * CELL_H;
+				const rowTop = y, rowBottom = y + CELL_H;
+				const obstacles = [];
+				for (const s of iconShapes) {
+					// Quick reject (include padY so near-edge rows still get checked).
+					if (rowBottom < s.top - s.padY || rowTop > s.top + s.height + s.padY) continue;
+					// Sample silhouette rows overlapping [rowTop - padY, rowBottom + padY]. Track the widest
+					// extent across those rows — that's the icon's horizontal footprint for this text line.
+					let leftNorm = 1, rightNorm = 0, hit = false;
+					const silH = s.silhouette.H;
+					const rel0 = (rowTop    - s.padY - s.top) / s.height;
+					const rel1 = (rowBottom + s.padY - s.top) / s.height;
+					const y0 = Math.max(0, Math.floor(rel0 * silH));
+					const y1 = Math.min(silH - 1, Math.ceil(rel1 * silH));
+					for (let yy = y0; yy <= y1; yy++) {
+						const band = s.silhouette.rows[yy];
+						if (!band) continue;
+						if (band[0] < leftNorm) leftNorm = band[0];
+						if (band[1] > rightNorm) rightNorm = band[1];
+						hit = true;
+					}
+					if (!hit) continue;
+					const absLeft  = s.left + leftNorm  * s.width - s.padX;
+					const absRight = s.left + rightNorm * s.width + s.padX;
+					obstacles.push([Math.max(0, absLeft), Math.min(maxW, absRight)]);
+				}
+				layoutRow(rows[i], i, obstacles, maxW);
+			}
+			requestAnimationFrame(tick);
+		}
+		requestAnimationFrame(tick);
+
+		let rt;
+		window.addEventListener('resize', () => {
+			clearTimeout(rt);
+			rt = setTimeout(() => { rows = buildRows(); }, 150);
+		});
+	})();
+</script>
+
+</body>
+</html>
