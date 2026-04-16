@@ -118,19 +118,19 @@
 			font-size: 11px;
 			line-height: 18px;
 			color: rgba(255,255,255,0.09);
-			/* Fade out the pattern near the title + buttons so they read clearly. */
-			-webkit-mask-image: radial-gradient(
-				ellipse 38% 45% at 50% 50%,
-				transparent 0%,
-				rgba(0,0,0,0.4) 35%,
-				#000 70%
-			);
-			mask-image: radial-gradient(
-				ellipse 38% 45% at 50% 50%,
-				transparent 0%,
-				rgba(0,0,0,0.4) 35%,
-				#000 70%
-			);
+			/* Composite mask:
+			   • Central ellipse so the title + buttons read clearly.
+			   • Top linear fade so the pattern eases into the header's black edge.
+			   Both layers are intersected (multiply) — text is only visible where
+			   BOTH masks are opaque. */
+			-webkit-mask-image:
+				radial-gradient(ellipse 38% 45% at 50% 50%, transparent 0%, rgba(0,0,0,0.4) 35%, #000 70%),
+				linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 4%, #000 14%);
+			mask-image:
+				radial-gradient(ellipse 38% 45% at 50% 50%, transparent 0%, rgba(0,0,0,0.4) 35%, #000 70%),
+				linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 4%, #000 14%);
+			-webkit-mask-composite: source-in;
+			mask-composite: intersect;
 		}
 		.hero-ascii .chunk {
 			position: absolute;
