@@ -496,7 +496,7 @@
 	const grid = document.getElementById('features-grid');
 	grid.innerHTML = FEATURES.map(f => `
 		<div class="relative flex flex-col border-b border-r border-gray-200/70 dark:border-gray-800/70 ${f.isWide ? 'md:col-span-2' : ''}">
-			<div class="aspect-16/9 overflow-hidden border-b border-gray-200/70 dark:border-gray-800/70 ${f.isWide ? 'md:aspect-16/5' : ''}">
+			<div class="aspect-16/9 overflow-hidden ${f.isWide ? 'md:aspect-16/5' : ''}">
 				<img src="${f.image}" alt="${f.description}" class="h-full w-full select-none object-cover dark:hidden ${f.isWide ? 'object-left' : ''}" loading="lazy"/>
 				<img src="${f.imageDark}" alt="${f.description}" class="hidden h-full w-full select-none object-cover dark:block ${f.isWide ? 'object-left' : ''}" loading="lazy"/>
 			</div>
