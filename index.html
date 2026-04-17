@@ -392,16 +392,10 @@
 	<!-- ========== BENTO ========== -->
 	<section class="w-full border-b border-gray-100 dark:border-gray-900 px-4">
 		<article class="relative mx-auto max-w-7xl overflow-hidden border-l border-r border-gray-100 dark:border-gray-900 bg-white dark:bg-gray-950">
-			<div class="relative p-5">
+			<div class="relative">
 				<div class="-mb-px -mr-px grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" id="features-grid">
 					<!-- features injected here -->
 				</div>
-				<!-- Dashed corner decorations -->
-				<div class="pointer-events-none absolute left-0 top-0 h-full w-5 border-r border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
-				<div class="pointer-events-none absolute left-0 top-0 h-5 w-full border-b border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
-				<div class="pointer-events-none absolute right-0 top-0 h-5 w-5 border-l border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
-				<div class="pointer-events-none absolute bottom-0 right-0 h-5 w-5 border-l border-t border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
-				<div class="pointer-events-none absolute bottom-0 left-0 h-5 w-5 border-t border-dashed border-gray-200/70 dark:border-gray-800/70"></div>
 			</div>
 		</article>
 	</section>
@@ -501,12 +495,12 @@
 
 	const grid = document.getElementById('features-grid');
 	grid.innerHTML = FEATURES.map(f => `
-		<div class="relative flex flex-col border-b border-r border-dashed border-gray-200/70 dark:border-gray-800/70 p-5 ${f.isWide ? 'md:col-span-2' : ''}">
-			<div class="aspect-16/9 overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800 ${f.isWide ? 'md:aspect-16/5' : ''}">
+		<div class="relative flex flex-col border-b border-r border-gray-200/70 dark:border-gray-800/70 ${f.isWide ? 'md:col-span-2' : ''}">
+			<div class="aspect-16/9 overflow-hidden ${f.isWide ? 'md:aspect-16/5' : ''}">
 				<img src="${f.image}" alt="${f.description}" class="h-full w-full select-none object-cover dark:hidden ${f.isWide ? 'object-left' : ''}" loading="lazy"/>
 				<img src="${f.imageDark}" alt="${f.description}" class="hidden h-full w-full select-none object-cover dark:block ${f.isWide ? 'object-left' : ''}" loading="lazy"/>
 			</div>
-			<a href="${f.href}" target="_blank" class="group mt-5">
+			<a href="${f.href}" target="_blank" class="group px-6 py-5">
 				<h2 class="mb-2 flex items-center text-lg font-semibold text-gray-900 dark:text-white decoration-gray-300 underline-offset-4 group-hover:underline dark:decoration-gray-500">
 					${f.title}
 					${iconTeam(f.requiresEnterprise)}
