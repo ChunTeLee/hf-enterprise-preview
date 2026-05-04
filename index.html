@@ -530,34 +530,17 @@
 		const POS_X_NORM = -0.7;
 		const POS_Y_NORM = -0.78;
 
-		// ---- Lighting ----
-		const SHADE_GAMMA = 0.75;
-		const SHADE_FLOOR = 0.18;  // ensures even the dimmest visible face still picks a non-blank glyph
-
-		// Light direction in world (pulled mostly sideways for clear face contrast). Pre-normalized.
-		const lWorld = (() => {
-			const v = [0.85, 0.45, 0.3];
-			const m = Math.hypot(v[0], v[1], v[2]);
-			return [v[0]/m, v[1]/m, v[2]/m];
-		})();
-
-		// Face normals in cube-local space. Index = hitFace returned by slab test.
-		const faceNormals = [
-			[ 1, 0, 0], [-1, 0, 0],   // 0 = +X, 1 = -X
-			[ 0, 1, 0], [ 0,-1, 0],   // 2 = +Y, 3 = -Y
-			[ 0, 0, 1], [ 0, 0,-1],   // 4 = +Z, 5 = -Z
-		];
-
-		// Per-face glyph palettes (light → dark). Each face has a distinct character "feel"
-		// so faces differ texturally (not just by brightness). All entries are visible glyphs
-		// — never space — so faces never blank out at low shade.
-		const PALETTES = [
-			'.;/I#',   // 0: +X right  — right-leaning verticals
-			'.;%I#',   // 1: -X left   — slightly different but matched weight
-			'.-=+#',   // 2: +Y top    — horizontal strokes
-			'.,_=#',   // 3: -Y bottom — sparse low feel
-			'.+o*#',   // 4: +Z front  — round
-			'.:|+#',   // 5: -Z back   — mixed
+		// Each face has a single, fixed glyph — no shading-driven variation. Faces are
+		// distinguished by glyph IDENTITY (shape) instead of brightness, so a face's
+		// texture stays uniform and rotation only changes WHICH faces are visible (no
+		// within-face glyph flicker as shade crosses band boundaries).
+		const FACE_GLYPHS = [
+			'/',   // 0: +X right  — right-leaning stroke
+			'\\',  // 1: -X left   — left-leaning stroke
+			'=',   // 2: +Y top    — horizontal
+			'-',   // 3: -Y bottom — light horizontal
+			'+',   // 4: +Z front  — round
+			'*',   // 5: -Z back   — denser dot
 		];
 
 		// Background fill: every non-cube cell gets the same smallest-footprint ASCII glyph
@@ -616,19 +599,7 @@
 
 			const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
 			const cosX = Math.cos(tiltX), sinX = Math.sin(tiltX);
-
-			// Pre-rotate face normals to world space and compute Lambert shade per face.
-			const faceShades = new Array(6);
-			for (let fi = 0; fi < 6; fi++) {
-				const n = faceNormals[fi];
-				const rx = cosY * n[0] + sinY * n[2];
-				const ry = n[1];
-				const rz = -sinY * n[0] + cosY * n[2];
-				const wx = rx;
-				const wy = cosX * ry - sinX * rz;
-				const wz = sinX * ry + cosX * rz;
-				faceShades[fi] = Math.max(0, wx * lWorld[0] + wy * lWorld[1] + wz * lWorld[2]);
-			}
+			// No per-frame Lambert shading — each face uses its fixed FACE_GLYPHS entry.
 
 			const screenAspect = (cols * charAspect) / rows;
 			const ZX = screenAspect * ZOOM;
@@ -714,23 +685,10 @@
 						// blank or sprinkled.
 						out += BG_GLYPH;
 					} else {
-						// Apply gamma + a shade floor so even the dimmest visible face still
-						// picks a glyph at roughly index 1 — never blanks out.
-						const raw = Math.pow(faceShades[hitFace], SHADE_GAMMA);
-						const shade = SHADE_FLOOR + (1 - SHADE_FLOOR) * raw;
-						const palette = PALETTES[hitFace];
-						// Ordered dither: instead of every cell on a face flipping glyph
-						// in lockstep at discrete shade boundaries (the "clunky" pop), each
-						// cell stochastically picks between its two nearest glyph levels
-						// based on its stable hash. Result: face shading transitions look
-						// continuous across the rotation rather than stepping in 5 bands.
-						const exact = shade * (palette.length - 1);
-						const baseIdx = Math.floor(exact);
-						const frac = exact - baseIdx;
-						const idx = (baseIdx < palette.length - 1 && cellHash(cx, cy) < frac)
-							? baseIdx + 1
-							: baseIdx;
-						out += palette[idx];
+						// One fixed glyph per face. Texture stays uniform across each face;
+						// rotation reads as smooth because only WHICH faces are visible
+						// changes, not the glyphs within them.
+						out += FACE_GLYPHS[hitFace];
 					}
 				}
 				out += '\n';
