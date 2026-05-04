@@ -104,25 +104,19 @@
 			background-image: linear-gradient(to bottom, #ffffff 45%, #9ca3af);
 		}
 
-		/* ASCII text-pattern background — rendered via @chenglou/pretext variable-width layout.
-		   Each row is a container; chunks are absolutely-positioned <span>s that pretext lays out
-		   around each floating icon (the "floats" in shape-around-floats parlance). */
-		.hero-ascii {
+		/* Big 3D ASCII cube hero background — pure SVG SMIL animation, no library.
+		   The SVG fills the hero with preserveAspectRatio="xMidYMid slice" so the
+		   cube can overflow the section bounds for that "zoomed in" feel. */
+		.hero-cube {
 			position: absolute;
 			inset: 0;
-			pointer-events: none;
-			user-select: none;
-			overflow: hidden;
+			width: 100%;
+			height: 100%;
 			z-index: 0;
-			font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-			font-size: 11px;
-			line-height: 18px;
-			color: rgba(255,255,255,0.09);
-			/* Composite mask:
-			   • Central ellipse so the title + buttons read clearly.
-			   • Top linear fade so the pattern eases into the header's black edge.
-			   Both layers are intersected (multiply) — text is only visible where
-			   BOTH masks are opaque. */
+			pointer-events: none;
+			overflow: hidden;
+			/* Composite mask: dim the cube near the title + buttons so they read,
+			   and fade the top edge into the header's dark band. */
 			-webkit-mask-image:
 				radial-gradient(ellipse 38% 45% at 50% 50%, transparent 0%, rgba(0,0,0,0.4) 35%, #000 70%),
 				linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 4%, #000 14%);
@@ -131,24 +125,6 @@
 				linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 4%, #000 14%);
 			-webkit-mask-composite: source-in;
 			mask-composite: intersect;
-		}
-		.hero-ascii .chunk {
-			position: absolute;
-			white-space: pre;
-			top: 0;
-			left: 0;
-			will-change: transform;
-		}
-
-		/* Explicit text sizes for the floating icons — Tailwind's text-6xl etc. drive the SVG size since it uses width/height 1em */
-		.text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
-		.text-5xl { font-size: 3rem; line-height: 1; }
-		.text-6xl { font-size: 3.75rem; line-height: 1; }
-		.text-7xl { font-size: 4.5rem; line-height: 1; }
-		.text-8xl { font-size: 6rem; line-height: 1; }
-		.text-9xl { font-size: 8rem; line-height: 1; }
-		@media (min-width: 640px) {
-			.sm\:text-9xl { font-size: 8rem; line-height: 1; }
 		}
 	</style>
 </head>
@@ -269,68 +245,8 @@
 	<div class="border-b border-gray-100 dark:border-gray-900 px-4">
 		<section id="hero-section" class="relative mx-auto flex max-w-7xl flex-col items-center text-balance border-l border-r border-gray-100 dark:border-gray-900 px-4 pb-0 pt-8 sm:px-6 sm:pt-12 lg:px-8">
 
-			<!-- ASCII text pattern — flows around floating icons (pretext-style variable-width layout) -->
-			<div id="hero-ascii-base" class="hero-ascii" aria-hidden="true"></div>
-
-			<!-- Floating shape 1: Models cube -->
-			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 24 24" data-float="1" class="text-6xl absolute top-16 left-12 sm:left-24 float-icon dark:text-gray-500" style="--rot:-28deg;--flip:-1;animation-duration:9s;animation-delay:-1s;">
-				<path class="uim-quaternary" d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
-				<path class="uim-tertiary" d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
-				<path class="uim-primary" d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
-			</svg>
-
-			<!-- Floating shape 2: Datasets cylinder -->
-			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 25 25" data-float="2" class="text-4xl absolute top-56 left-8 sm:left-16 float-icon dark:text-gray-500" style="--rot:8deg;animation-duration:7s;animation-delay:-3s;">
-				<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
-				<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
-				<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
-				<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
-			</svg>
-
-			<!-- Floating shape 3: Models cube -->
-			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 24 24" data-float="3" class="text-6xl absolute bottom-24 -left-16 float-icon dark:text-gray-500" style="--rot:42deg;animation-duration:8.5s;animation-delay:-5s;">
-				<path class="uim-quaternary" d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
-				<path class="uim-tertiary" d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
-				<path class="uim-primary" d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
-			</svg>
-
-			<!-- Floating shape 4: Datasets cylinder (large) -->
-			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 25 25" data-float="4" class="text-7xl sm:text-9xl absolute bottom-6 sm:-bottom-12 left-4 sm:left-28 float-icon dark:text-gray-500" style="--rot:-6deg;animation-duration:10s;animation-delay:-2s;">
-				<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
-				<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
-				<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
-				<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
-			</svg>
-
-			<!-- Floating shape 5: Models cube (large, right) -->
-			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 24 24" data-float="5" class="text-9xl absolute top-0 sm:top-12 right-12 float-icon dark:text-gray-500" style="--rot:25deg;--flip:-1;animation-duration:11s;animation-delay:-4s;">
-				<path class="uim-quaternary" d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
-				<path class="uim-tertiary" d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
-				<path class="uim-primary" d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
-			</svg>
-
-			<!-- Floating shape 6: Datasets cylinder (right) -->
-			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 25 25" data-float="6" class="text-5xl absolute top-40 2xl:top-52 -right-12 float-icon dark:text-gray-500" style="--rot:-10deg;animation-duration:7.5s;animation-delay:-6s;">
-				<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
-				<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
-				<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
-				<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
-			</svg>
-
-			<!-- Floating shape 7: Models cube (bottom right) -->
-			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 24 24" data-float="7" class="text-7xl absolute bottom-16 right-6 sm:right-16 float-icon dark:text-gray-500" style="--rot:-35deg;animation-duration:9.5s;animation-delay:-1.5s;">
-				<path class="uim-quaternary" d="M20.23 7.24L12 12L3.77 7.24a1.98 1.98 0 0 1 .7-.71L11 2.76c.62-.35 1.38-.35 2 0l6.53 3.77c.29.173.531.418.7.71z" opacity=".25" fill="currentColor"></path>
-				<path class="uim-tertiary" d="M12 12v9.5a2.09 2.09 0 0 1-.91-.21L4.5 17.48a2.003 2.003 0 0 1-1-1.73v-7.5a2.06 2.06 0 0 1 .27-1.01L12 12z" opacity=".5" fill="currentColor"></path>
-				<path class="uim-primary" d="M20.5 8.25v7.5a2.003 2.003 0 0 1-1 1.73l-6.62 3.82c-.275.13-.576.198-.88.2V12l8.23-4.76c.175.308.268.656.27 1.01z" fill="currentColor"></path>
-			</svg>
-
-			<!-- Floating shape 8: Datasets cylinder (bottom right, hidden on mobile) -->
-			<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="1em" height="1em" viewBox="0 0 25 25" data-float="8" class="text-8xl absolute max-sm:hidden -bottom-12 right-24 float-icon dark:text-gray-500" style="--rot:4deg;animation-duration:8s;animation-delay:-7s;">
-				<ellipse cx="12.5" cy="5" fill="currentColor" fill-opacity="0.25" rx="7.5" ry="2"></ellipse>
-				<path d="M12.5 15C16.6421 15 20 14.1046 20 13V20C20 21.1046 16.6421 22 12.5 22C8.35786 22 5 21.1046 5 20V13C5 14.1046 8.35786 15 12.5 15Z" fill="currentColor" opacity="0.5"></path>
-				<path d="M12.5 7C16.6421 7 20 6.10457 20 5V11.5C20 12.6046 16.6421 13.5 12.5 13.5C8.35786 13.5 5 12.6046 5 11.5V5C5 6.10457 8.35786 7 12.5 7Z" fill="currentColor" opacity="0.5"></path>
-				<path d="M5.23628 12C5.08204 12.1598 5 12.8273 5 13C5 14.1046 8.35786 15 12.5 15C16.6421 15 20 14.1046 20 13C20 12.8273 19.918 12.1598 19.7637 12C18.9311 12.8626 15.9947 13.5 12.5 13.5C9.0053 13.5 6.06886 12.8626 5.23628 12Z" fill="currentColor"></path>
-			</svg>
+			<!-- 3D ASCII cube hero background, pure SMIL animation, generated at page load -->
+			<svg id="hero-cube" class="hero-cube" viewBox="-1000 -700 2000 1400" preserveAspectRatio="xMidYMid slice" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"></svg>
 
 			<!-- Hero content -->
 			<div class="relative px-2 py-12 text-center sm:px-12 sm:py-16 lg:px-16 lg:py-20">
@@ -564,271 +480,132 @@
 		`;
 	}).join('');
 
-	// ---------- @chenglou/pretext variable-width layout (real library, via ESM CDN) ----------
-	// Flow the ASCII pattern around each floating icon using pretext's low-level
-	// layoutNextLineRange — which is pretext's answer to "text with variable max-width per line".
-	// We split each visual row into left-of-obstacle + right-of-obstacle sub-rows, using
-	// pretext to fit the maximum-possible prefix that fits the available width on each side.
-	(async () => {
-		const host = document.getElementById('hero-ascii-base');
-		const hero = document.getElementById('hero-section');
-		if (!host || !hero) return;
+	// ---------- 3D ASCII cube hero background (pure SMIL, no external libs) ----------
+	// At page load: pre-compute 60 keyframes of a Y-axis rotation (with a fixed X-tilt for
+	// "isometric-ish" perspective). For each of the 6 cube faces, emit:
+	//   • <text> with a static grid of ASCII characters in face-local (0..1, 0..1) coords
+	//   • <animateTransform type="matrix"> cycling through 60 affine matrices that map
+	//     the unit square to the face's projected screen quad
+	//   • <animate attributeName="opacity"> with discrete on/off for back-face culling
+	// SMIL handles all interpolation between keyframes — JS only generates the markup once.
+	(() => {
+		const svgEl = document.getElementById('hero-cube');
+		if (!svgEl) return;
 
-		let pretext;
-		try {
-			pretext = await import('https://esm.sh/@chenglou/pretext@0.0.5');
-		} catch (e) {
-			console.error('Failed to load @chenglou/pretext from esm.sh:', e);
-			return;
-		}
-		const { prepareWithSegments, layoutNextLineRange, materializeLineRange } = pretext;
+		// 8 cube vertices in 3D ([-1..1]^3).
+		const verts3d = [
+			[-1,-1,-1], [1,-1,-1], [1,1,-1], [-1,1,-1], // 0..3 back face (z=-1)
+			[-1,-1, 1], [1,-1, 1], [1,1, 1], [-1,1, 1]  // 4..7 front face (z=+1)
+		];
+		// Each face: 4 vertex indices in [topLeft, topRight, bottomRight, bottomLeft] order
+		// + outward normal in 3D (pre-rotation) + which character set to use.
+		const facesDef = [
+			{ idx: [4,5,6,7], normal: [ 0, 0, 1], charset: '#%@&$' },  // front +z
+			{ idx: [1,0,3,2], normal: [ 0, 0,-1], charset: '*+=:;.' }, // back  -z
+			{ idx: [0,4,7,3], normal: [-1, 0, 0], charset: '/<>[]{}' },// left  -x
+			{ idx: [5,1,2,6], normal: [ 1, 0, 0], charset: '\|^?!~' },// right +x
+			{ idx: [3,7,6,2], normal: [ 0, 1, 0], charset: '.,;:-_=' },// top   +y (note SVG y is down, so +y in 3D = up on screen if we flip)
+			{ idx: [0,1,5,4], normal: [ 0,-1, 0], charset: 'AVWMXY' }, // bottom -y
+		];
 
-		// ---------- Build per-icon silhouettes by rasterizing each SVG ----------
-		// For each floating icon we rasterize its current SVG into an offscreen canvas,
-		// then for each horizontal pixel row we find the leftmost + rightmost opaque pixel.
-		// Stored as normalized [l, r] pairs in [0..1] so we can scale to live icon size per frame.
-		async function silhouetteFor(iconEl) {
-			// Size the canvas high enough to resolve the shape but cheap enough to rasterize.
-			const W = 96, H = 96;
-			// Clone the SVG, strip color overrides, paint it solid so every opaque pixel is a hit.
-			const svg = iconEl.cloneNode(true);
-			svg.removeAttribute('class');
-			svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-			svg.setAttribute('width', W);
-			svg.setAttribute('height', H);
-			// Normalize rotation + flip (the live icon has --rot + --flip; bake them into the silhouette).
-			const cs = getComputedStyle(iconEl);
-			const rot = parseFloat(cs.getPropertyValue('--rot').trim()) || 0;
-			const flip = parseFloat(cs.getPropertyValue('--flip').trim()) || 1;
-			// Wrap paths in a <g> that applies the rotation (and flip) around the viewBox center.
-			const vb = svg.getAttribute('viewBox').split(/\s+/).map(Number);
-			const cx = vb[0] + vb[2] / 2, cy = vb[1] + vb[3] / 2;
-			const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-			// Order: translate to center, flip, rotate, translate back.
-			g.setAttribute('transform',
-				`translate(${cx} ${cy}) scale(${flip} 1) rotate(${rot}) translate(${-cx} ${-cy})`);
-			while (svg.firstChild) g.appendChild(svg.firstChild);
-			svg.appendChild(g);
-			// Force all paths to solid black for a binary silhouette.
-			svg.querySelectorAll('path, ellipse').forEach(p => {
-				p.setAttribute('fill', '#000');
-				p.setAttribute('opacity', '1');
-				p.removeAttribute('class');
+		const NFRAMES   = 60;
+		const TILT_X    = 22 * Math.PI / 180;  // baked X-tilt for isometric flair
+		const VIEWER_Z  = 2.6;                 // perspective distance
+		const SCALE     = 1100;                // projection scale; cube fills ~most of viewBox
+		const DUR_S     = 80;                  // 80s for one full rotation = nice and slow
+
+		const rY = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [c*p[0]+s*p[2], p[1], -s*p[0]+c*p[2]]; };
+		const rX = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0], c*p[1]-s*p[2], s*p[1]+c*p[2]]; };
+		const project = p => { const z = p[2] + VIEWER_Z; return [p[0]*SCALE/z, p[1]*SCALE/z]; };
+
+		// Pre-compute every keyframe's projected verts + face visibility.
+		const frames = [];
+		for (let f = 0; f < NFRAMES; f++) {
+			const ang = (f / NFRAMES) * Math.PI * 2;
+			// SVG y axis points DOWN, so flip y to get correct on-screen orientation.
+			const verts2d = verts3d.map(v => {
+				const r = rX(rY(v, ang), TILT_X);
+				const p = project(r);
+				return [p[0], -p[1]]; // flip y
 			});
-			const str = new XMLSerializer().serializeToString(svg);
-			const img = await new Promise((res, rej) => {
-				const im = new Image();
-				im.onload = () => res(im);
-				im.onerror = rej;
-				im.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(str)));
+			const faceData = facesDef.map(face => {
+				const corners = face.idx.map(i => verts2d[i]);
+				// Rotate normal the same way and apply same y-flip.
+				const n = rX(rY(face.normal, ang), TILT_X);
+				return { corners, normalZ: n[2] };
 			});
-			const cv = document.createElement('canvas');
-			cv.width = W; cv.height = H;
-			const ctx = cv.getContext('2d');
-			ctx.drawImage(img, 0, 0, W, H);
-			const data = ctx.getImageData(0, 0, W, H).data;
-			// For each row, find left + right extents of opaque pixels (alpha > threshold).
-			const rows = [];
-			for (let y = 0; y < H; y++) {
-				let left = -1, right = -1;
-				for (let x = 0; x < W; x++) {
-					const a = data[(y * W + x) * 4 + 3];
-					if (a > 20) {
-						if (left === -1) left = x;
-						right = x;
-					}
-				}
-				rows.push(left === -1 ? null : [left / W, (right + 1) / W]);
-			}
-			return { W, H, rows };
+			frames.push(faceData);
 		}
 
-		// Rasterize all 8 icons in parallel.
-		const iconEls = Array.from(document.querySelectorAll('[data-float]'));
-		const silhouettes = await Promise.all(iconEls.map(silhouetteFor));
+		// Seeded PRNG so the per-face grid is stable across reloads.
+		const mulberry32 = seed => () => {
+			seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+			let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+			t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
 
-		// One long source string of punctuation tokens (same alphabet HF storage uses).
-		const CHAR_SET = '. : ; + = ( ~ @ # % & * ? / < > [ ] { } | ^ $ !';
-		const tokens = CHAR_SET.split(' ');
-		const FONT = '11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-		const CELL_H = 18;
-
-		// Build one prepared handle per row using a deterministic PRNG so the content looks
-		// genuinely random — no repeating token cycle — while still being stable frame-to-frame.
-		// We pre-bake ROW_SEEDS handles and reuse them round-robin across visual rows.
-		function mulberry32(seed) {
-			return function () {
-				seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
-				let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-				t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-				return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-			};
-		}
-		function randomRow(seed, length) {
+		// Build the ASCII grid for one face. Returns the <text> markup with tspan rows.
+		// Coordinates live in face-local (0..1) space; the parent <g>'s matrix transforms
+		// them onto the face's projected quad.
+		const COLS = 22, ROWS = 14;
+		const FONT_SIZE = 0.062;   // in face-local units
+		const ROW_STEP  = 0.066;   // line spacing
+		const COL_STEP  = 0.043;   // approximate monospace advance in face-local units
+		function buildFaceText(seed, charset) {
 			const rnd = mulberry32(seed);
-			let out = '';
-			for (let i = 0; i < length; i++) {
-				const t = tokens[Math.floor(rnd() * tokens.length)];
-				// Bias toward a single space between tokens, but occasionally double it to
-				// break up the visual rhythm.
-				out += t + (rnd() < 0.08 ? '  ' : ' ');
-			}
-			return out;
-		}
-		const ROW_SEEDS = 48;
-		const prepareds = [];
-		for (let s = 0; s < ROW_SEEDS; s++) {
-			const src = randomRow(s * 2654435761, 1800);
-			prepareds.push({ handle: prepareWithSegments(src, FONT), src });
-		}
-
-		// Run pretext to fit the widest possible prefix of `prepSlot.handle` into `availW`,
-		// starting from `cursor`. Returns { text, endCursor } or null.
-		function fitPrefix(prepSlot, cursor, availW) {
-			if (availW <= 0) return null;
-			const range = layoutNextLineRange(prepSlot.handle, cursor, availW);
-			if (!range) return null;
-			const line = materializeLineRange(prepSlot.handle, range);
-			return { text: line.text, endCursor: range.end };
-		}
-
-		// Build row containers (absolute <span> chunks inside each row).
-		function buildRows() {
-			host.innerHTML = '';
-			const heroRect = hero.getBoundingClientRect();
-			const rowCount = Math.ceil(heroRect.height / CELL_H) + 2;
-			const frag = document.createDocumentFragment();
-			for (let i = 0; i < rowCount; i++) {
-				const row = document.createElement('div');
-				row.style.position = 'absolute';
-				row.style.left = '0';
-				row.style.right = '0';
-				row.style.top = (i * CELL_H) + 'px';
-				row.style.height = CELL_H + 'px';
-				frag.appendChild(row);
-			}
-			host.appendChild(frag);
-			return Array.from(host.children);
-		}
-		let rows = buildRows();
-
-		const icons = Array.from(document.querySelectorAll('[data-float]'));
-
-		// Layout a single row: gather obstacles at this Y, split the row into horizontal
-		// free-space segments, then use pretext to fit a prefix of SOURCE in each segment.
-		function layoutRow(rowEl, rowIdx, obstacles, maxW) {
-			// Merge & sort obstacles.
-			obstacles.sort((a, b) => a[0] - b[0]);
-
-			// Build list of free-space segments along this row.
-			const segments = [];
-			let cursorX = 0;
-			for (const [a, b] of obstacles) {
-				if (a > cursorX) segments.push([cursorX, Math.min(a, maxW)]);
-				cursorX = Math.max(cursorX, b);
-				if (cursorX >= maxW) break;
-			}
-			if (cursorX < maxW) segments.push([cursorX, maxW]);
-
-			// Pick a per-row prepared handle (different token rotation per row).
-			const prepSlot = prepareds[rowIdx % prepareds.length];
-			let ptCursor = { segmentIndex: 0, graphemeIndex: 0 };
-
-			// Fit a prefix in each free-space segment via pretext's layoutNextLineRange.
-			const chunks = [];
-			for (const [x0, x1] of segments) {
-				const availW = x1 - x0;
-				const fit = fitPrefix(prepSlot, ptCursor, availW);
-				if (!fit) continue;
-				chunks.push({ x: x0, text: fit.text });
-				ptCursor = fit.endCursor;
-			}
-
-			// Reconcile with existing DOM chunks in this row.
-			const existing = rowEl.children;
-			for (let i = 0; i < chunks.length; i++) {
-				let el = existing[i];
-				if (!el) {
-					el = document.createElement('span');
-					el.className = 'chunk';
-					rowEl.appendChild(el);
+			let tspans = '';
+			for (let r = 0; r < ROWS; r++) {
+				let line = '';
+				for (let c = 0; c < COLS; c++) {
+					line += charset[Math.floor(rnd() * charset.length)];
 				}
-				const c = chunks[i];
-				if (el.textContent !== c.text) el.textContent = c.text;
-				el.style.transform = 'translateX(' + c.x + 'px)';
+				const y = (0.05 + r * ROW_STEP).toFixed(3);
+				tspans += `<tspan x="0.02" y="${y}">${line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</tspan>`;
 			}
-			// Remove extras.
-			while (existing.length > chunks.length) rowEl.removeChild(existing[existing.length - 1]);
+			// We rely on font-size in user units — the matrix transform scales up to face size.
+			return `<text font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="${FONT_SIZE}" font-weight="500" fill="#fff" style="white-space:pre">${tspans}</text>`;
 		}
 
-		function tick() {
-			const heroRect = hero.getBoundingClientRect();
-			const maxW = heroRect.width;
-
-			// For every icon grab live rect, pair with its silhouette, and apply an outward
-			// padding so the text never kisses the shape's edge.
-			const iconShapes = [];
-			for (let k = 0; k < icons.length; k++) {
-				const r = icons[k].getBoundingClientRect();
-				if (r.width === 0) continue;
-				const localLeft = r.left - heroRect.left;
-				const localRight = r.right - heroRect.left;
-				// Only hide icons whose center lies outside the hero's horizontal bounds —
-				// i.e. the ones sitting on the left/right exterior of the section.
-				const centerX = (localLeft + localRight) / 2;
-				const outsideSides = centerX < 0 || centerX > maxW;
-				icons[k].style.visibility = outsideSides ? 'hidden' : '';
-				if (outsideSides) continue;
-				iconShapes.push({
-					top: r.top - heroRect.top,
-					height: r.height,
-					left: r.left - heroRect.left,
-					width: r.width,
-					// Generous horizontal pad so no character bleeds under the silhouette edge.
-					padX: 14,
-					padY: 4,
-					silhouette: silhouettes[k],
-				});
-			}
-
-			for (let i = 0; i < rows.length; i++) {
-				const y = i * CELL_H;
-				const rowTop = y, rowBottom = y + CELL_H;
-				const obstacles = [];
-				for (const s of iconShapes) {
-					// Quick reject (include padY so near-edge rows still get checked).
-					if (rowBottom < s.top - s.padY || rowTop > s.top + s.height + s.padY) continue;
-					// Sample silhouette rows overlapping [rowTop - padY, rowBottom + padY]. Track the widest
-					// extent across those rows — that's the icon's horizontal footprint for this text line.
-					let leftNorm = 1, rightNorm = 0, hit = false;
-					const silH = s.silhouette.H;
-					const rel0 = (rowTop    - s.padY - s.top) / s.height;
-					const rel1 = (rowBottom + s.padY - s.top) / s.height;
-					const y0 = Math.max(0, Math.floor(rel0 * silH));
-					const y1 = Math.min(silH - 1, Math.ceil(rel1 * silH));
-					for (let yy = y0; yy <= y1; yy++) {
-						const band = s.silhouette.rows[yy];
-						if (!band) continue;
-						if (band[0] < leftNorm) leftNorm = band[0];
-						if (band[1] > rightNorm) rightNorm = band[1];
-						hit = true;
-					}
-					if (!hit) continue;
-					const absLeft  = s.left + leftNorm  * s.width - s.padX;
-					const absRight = s.left + rightNorm * s.width + s.padX;
-					obstacles.push([Math.max(0, absLeft), Math.min(maxW, absRight)]);
-				}
-				layoutRow(rows[i], i, obstacles, maxW);
-			}
-			requestAnimationFrame(tick);
+		// Affine matrix that maps unit square (0,0)→(1,0)→(1,1)→(0,1) to the four face corners.
+		// SVG matrix = [a b c d e f] where (u,v) -> (a*u + c*v + e, b*u + d*v + f).
+		// We fit (0,0)=c0, (1,0)=c1, (0,1)=c3 exactly; the (1,1) diagonal lands at c1+c3-c0
+		// which equals c2 only for parallelograms. Close enough for cube faces visually.
+		function matrixFor(corners) {
+			const [c0, c1, , c3] = corners;
+			const a = c1[0] - c0[0], b = c1[1] - c0[1];
+			const c = c3[0] - c0[0], d = c3[1] - c0[1];
+			const e = c0[0],         fy = c0[1];
+			return `${a.toFixed(2)} ${b.toFixed(2)} ${c.toFixed(2)} ${d.toFixed(2)} ${e.toFixed(2)} ${fy.toFixed(2)}`;
 		}
-		requestAnimationFrame(tick);
 
-		let rt;
-		window.addEventListener('resize', () => {
-			clearTimeout(rt);
-			rt = setTimeout(() => { rows = buildRows(); }, 150);
-		});
+		// Generate per-face SMIL markup.
+		let groups = '';
+		for (let fi = 0; fi < facesDef.length; fi++) {
+			const face = facesDef[fi];
+			const matrixValues = frames.map(fr => matrixFor(fr[fi].corners)).join(';');
+			const polyValues   = frames.map(fr => fr[fi].corners.map(c => `${c[0].toFixed(1)},${c[1].toFixed(1)}`).join(' ')).join(';');
+			// Slight hysteresis on opacity so faces edge-on don't flicker.
+			const opacityValues = frames.map(fr => fr[fi].normalZ > 0.02 ? '1' : '0').join(';');
+			const initialMatrix = matrixValues.split(';')[0];
+			const initialPoly   = polyValues.split(';')[0];
+			const textMarkup    = buildFaceText(fi * 9973 + 17, face.charset);
+
+			groups += `
+				<g opacity="1">
+					<polygon points="${initialPoly}" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.18)" stroke-width="1.2">
+						<animate attributeName="points" values="${polyValues}" dur="${DUR_S}s" repeatCount="indefinite" calcMode="linear"/>
+					</polygon>
+					<g transform="matrix(${initialMatrix})">
+						${textMarkup}
+						<animateTransform attributeName="transform" type="matrix" values="${matrixValues}" dur="${DUR_S}s" repeatCount="indefinite" calcMode="linear"/>
+					</g>
+					<animate attributeName="opacity" values="${opacityValues}" dur="${DUR_S}s" repeatCount="indefinite" calcMode="discrete"/>
+				</g>
+			`;
+		}
+
+		svgEl.innerHTML = `<g>${groups}</g>`;
 	})();
 </script>
 
