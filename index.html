@@ -519,12 +519,11 @@
 
 		// ---- Cube + projection ----
 		const CUBE = 1.0;     // cube half-extent in world units
-		const ZOOM = 1.15;    // > 1 makes the cube smaller relative to the viewport so it
-		                      // can sit clearly in the bottom-left corner without overpowering
-		// Cube center anchored at ~22% from left, ~78% from top of the hero, with the bottom
-		// edge of the cube partly clipping below the section.
+		const ZOOM = 0.75;    // smaller ZOOM = cube larger on screen (≈20% bigger than before)
+		// Cube center pushed deeper into the lower-left — bottom edge clips off the section
+		// (~30% of the cube area falls outside the visible hero, mostly off the bottom).
 		const POS_X_NORM = -0.55;
-		const POS_Y_NORM = -0.55;
+		const POS_Y_NORM = -0.45;
 
 		// ---- Lighting ----
 		const SHADE_GAMMA = 0.75;
@@ -556,9 +555,10 @@
 			'.:|+#',   // 5: -Z back   — mixed
 		];
 
-		// Dim "starfield" glyphs for non-cube cells — keep the empty space alive without
-		// competing with the cube. Stable per cell-position so it doesn't flicker.
-		const STAR_DENSITY = 0.025; // 2.5% of empty cells get a star
+		// Background fill: every non-cube cell gets the same smallest-footprint ASCII glyph
+		// (the period). Uniform dense fill, not sparkle — the cube reads as denser glyph
+		// coverage emerging from a continuous low-density dot field.
+		const BG_GLYPH = '.';
 
 		// ---- Grid sizing — derived from hero pixel size + measured monospace metrics ----
 		let cols = 0, rows = 0, charAspect = 0.55;
@@ -704,8 +704,10 @@
 					} else if (!outside && (oz < -CUBE || oz > CUBE)) outside = true;
 
 					if (outside || tmin > tmax || tmin < 0 || hitFace < 0) {
-						// Empty cell: very rarely emit a dim star so the bg has a touch of life.
-						out += (cellHash(cx, cy) < STAR_DENSITY) ? '·' : ' ';
+						// Every non-cube cell gets the period glyph — uniform dense low-density
+						// fill so the bg is fully populated with the smallest ASCII char, not
+						// blank or sprinkled.
+						out += BG_GLYPH;
 					} else {
 						// Apply gamma + a shade floor so even the dimmest visible face still
 						// picks a glyph at roughly index 1 — never blanks out.
