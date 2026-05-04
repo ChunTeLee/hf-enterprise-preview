@@ -513,17 +513,20 @@
 		// ---- Geometry / lighting setup ----
 		// ---- Animation timing ----
 		const ROT_PER_SEC   = (2 * Math.PI) / 180; // 180s per full Y-axis revolution (very slow)
-		const TUMBLE_AMP    = 6 * Math.PI / 180;   // ±6° X-axis wobble
+		const TUMBLE_AMP    = 5 * Math.PI / 180;   // ±5° X-axis wobble
 		const TUMBLE_PERIOD = 38;                   // seconds for one tumble cycle
-		const TILT_X_BASE   = 22 * Math.PI / 180;  // resting X-tilt around which we wobble
+		// Resting X-tilt: small NEGATIVE angle so the cube reads as "slightly upward" —
+		// camera looking just below the cube's equator, bottom face barely visible at the
+		// underside. Was +22° (looking down at top); now -8° (looking up under).
+		const TILT_X_BASE   = -8 * Math.PI / 180;
 
 		// ---- Cube + projection ----
 		const CUBE = 1.0;     // cube half-extent in world units
-		const ZOOM = 0.75;    // smaller ZOOM = cube larger on screen (≈20% bigger than before)
-		// Cube center pushed deeper into the lower-left — bottom edge clips off the section
-		// (~30% of the cube area falls outside the visible hero, mostly off the bottom).
+		const ZOOM = 0.82;    // cube size; smaller ZOOM = bigger cube on screen
+		// Cube anchored low-left. Top sits ~25% from the hero's upper edge with clear padding;
+		// ~35% of the cube area clips off the bottom edge of the section.
 		const POS_X_NORM = -0.55;
-		const POS_Y_NORM = -0.45;
+		const POS_Y_NORM = -0.7;
 
 		// ---- Lighting ----
 		const SHADE_GAMMA = 0.75;
