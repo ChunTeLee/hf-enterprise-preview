@@ -104,9 +104,11 @@
 			background-image: linear-gradient(to bottom, #ffffff 45%, #9ca3af);
 		}
 
-		/* Big 3D ASCII cube hero background — pure SVG SMIL animation, no library.
-		   The SVG fills the hero with preserveAspectRatio="xMidYMid slice" so the
-		   cube can overflow the section bounds for that "zoomed in" feel. */
+		/* 3D ASCII cube hero background — runtime ray-cast renderer.
+		   Each animation tick: for every char cell in the <pre>, cast a ray into the
+		   rotated cube, find the nearest face it hits, look up a Lambert-shaded glyph.
+		   This means face edges are exact (no affine-quad gaps) and per-char motion
+		   follows the true 3D rotation. */
 		.hero-cube {
 			position: absolute;
 			inset: 0;
@@ -115,8 +117,16 @@
 			z-index: 0;
 			pointer-events: none;
 			overflow: hidden;
-			/* Composite mask: dim the cube near the title + buttons so they read,
-			   and fade the top edge into the header's dark band. */
+			margin: 0;
+			padding: 0;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+			font-size: 12px;
+			line-height: 12px;
+			letter-spacing: 0;
+			color: rgba(255, 255, 255, 0.65);
+			white-space: pre;
+			user-select: none;
+			/* Composite mask: dim near title + buttons, fade top edge. */
 			-webkit-mask-image:
 				radial-gradient(ellipse 38% 45% at 50% 50%, transparent 0%, rgba(0,0,0,0.4) 35%, #000 70%),
 				linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 4%, #000 14%);
@@ -245,8 +255,8 @@
 	<div class="border-b border-gray-100 dark:border-gray-900 px-4">
 		<section id="hero-section" class="relative mx-auto flex max-w-7xl flex-col items-center text-balance border-l border-r border-gray-100 dark:border-gray-900 px-4 pb-0 pt-8 sm:px-6 sm:pt-12 lg:px-8">
 
-			<!-- 3D ASCII cube hero background, pure SMIL animation, generated at page load -->
-			<svg id="hero-cube" class="hero-cube" viewBox="-1000 -700 2000 1400" preserveAspectRatio="xMidYMid slice" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"></svg>
+			<!-- 3D ASCII cube hero background — content rewritten each rAF tick by the IIFE below -->
+			<pre id="hero-cube" class="hero-cube" aria-hidden="true"></pre>
 
 			<!-- Hero content -->
 			<div class="relative px-2 py-12 text-center sm:px-12 sm:py-16 lg:px-16 lg:py-20">
@@ -480,130 +490,194 @@
 		`;
 	}).join('');
 
-	// ---------- 3D ASCII cube hero background (pure SMIL, no external libs) ----------
-	// At page load: pre-compute 60 keyframes of a Y-axis rotation (with a fixed X-tilt for
-	// "isometric-ish" perspective). For each of the 6 cube faces, emit:
-	//   • <text> with a static grid of ASCII characters in face-local (0..1, 0..1) coords
-	//   • <animateTransform type="matrix"> cycling through 60 affine matrices that map
-	//     the unit square to the face's projected screen quad
-	//   • <animate attributeName="opacity"> with discrete on/off for back-face culling
-	// SMIL handles all interpolation between keyframes — JS only generates the markup once.
+	// ---------- 3D ASCII cube hero background (runtime ray-cast renderer) ----------
+	// Each rAF tick:
+	//   1. Update rotY by elapsed dt.
+	//   2. For each character cell in the <pre>, cast an orthographic ray into the
+	//      rotated cube, find the nearest face it hits via slab intersection.
+	//   3. Look up a glyph from a shading ramp using a Lambert dot product between
+	//      that face's world-space normal and a fixed light direction.
+	//   4. Replace the <pre>'s textContent with the freshly-built grid string.
+	//
+	// Because every character independently samples the actual 3D cube, adjacent chars
+	// on either side of a cube edge naturally pick different faces — face joins are
+	// exact by construction. No affine-quad approximation, no pre-computed keyframes,
+	// no library.
 	(() => {
-		const svgEl = document.getElementById('hero-cube');
-		if (!svgEl) return;
+		const pre  = document.getElementById('hero-cube');
+		const hero = document.getElementById('hero-section');
+		if (!pre || !hero) return;
 
-		// 8 cube vertices in 3D ([-1..1]^3).
-		const verts3d = [
-			[-1,-1,-1], [1,-1,-1], [1,1,-1], [-1,1,-1], // 0..3 back face (z=-1)
-			[-1,-1, 1], [1,-1, 1], [1,1, 1], [-1,1, 1]  // 4..7 front face (z=+1)
+		// ---- Geometry / lighting setup ----
+		const TILT_X = 22 * Math.PI / 180;        // baked X-tilt for isometric flair
+		const ROT_PER_SEC = (2 * Math.PI) / 90;   // 90 seconds per full Y-axis revolution
+		const CUBE = 1.0;                          // cube half-extent in world units
+		const ZOOM = 0.85;                         // < 1 zooms in; 0.85 = cube fills ~70% of viewport height
+		const SHADE_GAMMA = 0.7;                   // < 1 = more contrast between faces (darker dark, brighter bright)
+		const RAMP = " .,-~:;=+*#%@";             // 13-step shading ramp, light to dark
+
+		// Light direction in world space — pulled to the right so the right face becomes
+		// the brightest, top is medium, front (toward viewer) is dimmest. This gives the
+		// cube a strong "carved" 3D look at all rotations. Pre-normalized.
+		const lWorld = (() => {
+			const v = [0.85, 0.45, 0.3];
+			const m = Math.hypot(v[0], v[1], v[2]);
+			return [v[0]/m, v[1]/m, v[2]/m];
+		})();
+
+		// Face normals in cube-local space. Index = hitFace returned by slab test.
+		const faceNormals = [
+			[ 1, 0, 0], [-1, 0, 0],   // 0 = +X, 1 = -X
+			[ 0, 1, 0], [ 0,-1, 0],   // 2 = +Y, 3 = -Y
+			[ 0, 0, 1], [ 0, 0,-1],   // 4 = +Z, 5 = -Z
 		];
-		// Each face: 4 vertex indices in [topLeft, topRight, bottomRight, bottomLeft] order
-		// + outward normal in 3D (pre-rotation) + which character set to use.
-		const facesDef = [
-			{ idx: [4,5,6,7], normal: [ 0, 0, 1], charset: '#%@&$' },  // front +z
-			{ idx: [1,0,3,2], normal: [ 0, 0,-1], charset: '*+=:;.' }, // back  -z
-			{ idx: [0,4,7,3], normal: [-1, 0, 0], charset: '/<>[]{}' },// left  -x
-			{ idx: [5,1,2,6], normal: [ 1, 0, 0], charset: '\|^?!~' },// right +x
-			{ idx: [3,7,6,2], normal: [ 0, 1, 0], charset: '.,;:-_=' },// top   +y (note SVG y is down, so +y in 3D = up on screen if we flip)
-			{ idx: [0,1,5,4], normal: [ 0,-1, 0], charset: 'AVWMXY' }, // bottom -y
-		];
 
-		// 180 keyframes over 80s = a keyframe every ~0.44s, only 2deg of rotation between
-		// adjacent frames — small enough that SMIL's linear matrix interpolation reads as
-		// continuous spin rather than discrete slides ("PPT" effect at low frame counts).
-		const NFRAMES   = 180;
-		const TILT_X    = 22 * Math.PI / 180;
-		const VIEWER_Z  = 2.6;
-		const SCALE     = 1100;
-		const DUR_S     = 80;
-
-		const rY = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [c*p[0]+s*p[2], p[1], -s*p[0]+c*p[2]]; };
-		const rX = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0], c*p[1]-s*p[2], s*p[1]+c*p[2]]; };
-		const project = p => { const z = p[2] + VIEWER_Z; return [p[0]*SCALE/z, p[1]*SCALE/z]; };
-
-		// Pre-compute every keyframe's projected verts + face visibility.
-		const frames = [];
-		for (let f = 0; f < NFRAMES; f++) {
-			const ang = (f / NFRAMES) * Math.PI * 2;
-			// SVG y axis points DOWN, so flip y to get correct on-screen orientation.
-			const verts2d = verts3d.map(v => {
-				const r = rX(rY(v, ang), TILT_X);
-				const p = project(r);
-				return [p[0], -p[1]]; // flip y
-			});
-			const faceData = facesDef.map(face => {
-				const corners = face.idx.map(i => verts2d[i]);
-				// Rotate normal the same way and apply same y-flip.
-				const n = rX(rY(face.normal, ang), TILT_X);
-				return { corners, normalZ: n[2] };
-			});
-			frames.push(faceData);
+		// ---- Grid sizing — derived from hero pixel size + measured monospace metrics ----
+		let cols = 0, rows = 0, charAspect = 0.55;
+		function resize() {
+			const r = hero.getBoundingClientRect();
+			const cs = getComputedStyle(pre);
+			const fs = parseFloat(cs.fontSize) || 11;
+			const lh = parseFloat(cs.lineHeight) || fs;
+			const probe = document.createElement('span');
+			probe.style.font = cs.font;
+			probe.style.position = 'absolute';
+			probe.style.visibility = 'hidden';
+			probe.style.whiteSpace = 'pre';
+			probe.textContent = 'M'.repeat(80);
+			document.body.appendChild(probe);
+			const cw = probe.getBoundingClientRect().width / 80;
+			probe.remove();
+			cols = Math.max(20, Math.floor(r.width / cw));
+			rows = Math.max(10, Math.floor(r.height / lh));
+			charAspect = cw / lh;
 		}
+		resize();
+		let resizeT;
+		window.addEventListener('resize', () => {
+			clearTimeout(resizeT);
+			resizeT = setTimeout(resize, 100);
+		});
 
-		// Seeded PRNG so the per-face grid is stable across reloads.
-		const mulberry32 = seed => () => {
-			seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
-			let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-			t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-		};
+		// ---- Render loop ----
+		let rotY = 0;
+		let lastT = performance.now();
 
-		// Build the ASCII grid for one face. Coordinates live in face-local (0..1) space;
-		// the parent <g>'s matrix transforms them onto the face's projected quad.
-		// Dense + tiny + gray = reads as background texture, not foreground content.
-		const COLS = 34, ROWS = 22;
-		const FONT_SIZE = 0.044;   // in face-local units (small)
-		const ROW_STEP  = 0.044;
-		function buildFaceText(seed, charset) {
-			const rnd = mulberry32(seed);
-			let tspans = '';
-			for (let r = 0; r < ROWS; r++) {
-				let line = '';
-				for (let c = 0; c < COLS; c++) {
-					line += charset[Math.floor(rnd() * charset.length)];
-				}
-				const y = (0.04 + r * ROW_STEP).toFixed(3);
-				tspans += `<tspan x="0.015" y="${y}">${line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</tspan>`;
+		function render(now) {
+			const dt = (now - lastT) / 1000;
+			lastT = now;
+			rotY += dt * ROT_PER_SEC;
+
+			const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+			const cosX = Math.cos(TILT_X), sinX = Math.sin(TILT_X);
+
+			// Pre-rotate face normals to world space and compute Lambert shade per face.
+			const faceShades = new Array(6);
+			for (let fi = 0; fi < 6; fi++) {
+				const n = faceNormals[fi];
+				// Apply rY then rX (forward rotation) to take local -> world.
+				const rx = cosY * n[0] + sinY * n[2];
+				const ry = n[1];
+				const rz = -sinY * n[0] + cosY * n[2];
+				const wx = rx;
+				const wy = cosX * ry - sinX * rz;
+				const wz = sinX * ry + cosX * rz;
+				faceShades[fi] = Math.max(0, wx * lWorld[0] + wy * lWorld[1] + wz * lWorld[2]);
 			}
-			// Dim gray fill — texture, not content.
-			return `<text font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="${FONT_SIZE}" fill="rgba(255,255,255,0.22)" style="white-space:pre">${tspans}</text>`;
+
+			const screenAspect = (cols * charAspect) / rows;
+			const ZX = screenAspect * ZOOM;
+			const ZY = ZOOM;
+
+			let out = '';
+			const rampMax = RAMP.length - 1;
+
+			for (let cy = 0; cy < rows; cy++) {
+				const ndcY = -((cy + 0.5) / rows * 2 - 1) * ZY;
+				for (let cx = 0; cx < cols; cx++) {
+					const ndcX = ((cx + 0.5) / cols * 2 - 1) * ZX;
+
+					// Ray in world: origin (ndcX, ndcY, +5), direction (0, 0, -1).
+					let ox = ndcX, oy = ndcY, oz = 5;
+					let dx = 0,    dy = 0,    dz = -1;
+
+					// Apply inverse rX (a -> -a):  y' = c*y + s*z,  z' = -s*y + c*z
+					{
+						const oy2 = cosX * oy + sinX * oz;
+						const oz2 = -sinX * oy + cosX * oz;
+						oy = oy2; oz = oz2;
+						const dy2 = cosX * dy + sinX * dz;
+						const dz2 = -sinX * dy + cosX * dz;
+						dy = dy2; dz = dz2;
+					}
+					// Apply inverse rY (a -> -a):  x' = c*x - s*z,  z' = s*x + c*z
+					{
+						const ox2 = cosY * ox - sinY * oz;
+						const oz2 = sinY * ox + cosY * oz;
+						ox = ox2; oz = oz2;
+						const dx2 = cosY * dx - sinY * dz;
+						const dz2 = sinY * dx + cosY * dz;
+						dx = dx2; dz = dz2;
+					}
+
+					// Slab test against axis-aligned [-CUBE, CUBE]^3.
+					let tmin = -Infinity, tmax = Infinity;
+					let hitFace = -1;
+					let outside = false;
+
+					// X slab
+					if (Math.abs(dx) > 1e-9) {
+						const inv = 1 / dx;
+						const t1 = (-CUBE - ox) * inv;
+						const t2 = ( CUBE - ox) * inv;
+						let near, far, face;
+						if (t1 < t2) { near = t1; far = t2; face = 1; }
+						else         { near = t2; far = t1; face = 0; }
+						if (near > tmin) { tmin = near; hitFace = face; }
+						if (far  < tmax) tmax = far;
+					} else if (ox < -CUBE || ox > CUBE) outside = true;
+
+					// Y slab
+					if (!outside && Math.abs(dy) > 1e-9) {
+						const inv = 1 / dy;
+						const t1 = (-CUBE - oy) * inv;
+						const t2 = ( CUBE - oy) * inv;
+						let near, far, face;
+						if (t1 < t2) { near = t1; far = t2; face = 3; }
+						else         { near = t2; far = t1; face = 2; }
+						if (near > tmin) { tmin = near; hitFace = face; }
+						if (far  < tmax) tmax = far;
+					} else if (!outside && (oy < -CUBE || oy > CUBE)) outside = true;
+
+					// Z slab
+					if (!outside && Math.abs(dz) > 1e-9) {
+						const inv = 1 / dz;
+						const t1 = (-CUBE - oz) * inv;
+						const t2 = ( CUBE - oz) * inv;
+						let near, far, face;
+						if (t1 < t2) { near = t1; far = t2; face = 5; }
+						else         { near = t2; far = t1; face = 4; }
+						if (near > tmin) { tmin = near; hitFace = face; }
+						if (far  < tmax) tmax = far;
+					} else if (!outside && (oz < -CUBE || oz > CUBE)) outside = true;
+
+					if (outside || tmin > tmax || tmin < 0 || hitFace < 0) {
+						out += ' ';
+					} else {
+						// Apply gamma so shade ranges expand — a face at shade 0.5 reads as
+						// noticeably brighter than 0.4, instead of both rounding to the same glyph.
+						const shade = Math.pow(faceShades[hitFace], SHADE_GAMMA);
+						const idx = Math.min(rampMax, Math.max(0, Math.floor(shade * RAMP.length)));
+						out += RAMP[idx];
+					}
+				}
+				out += '\n';
+			}
+
+			pre.textContent = out;
+			requestAnimationFrame(render);
 		}
-
-		// Affine matrix that maps unit square (0,0)→(1,0)→(1,1)→(0,1) to the four face corners.
-		// SVG matrix = [a b c d e f] where (u,v) -> (a*u + c*v + e, b*u + d*v + f).
-		// We fit (0,0)=c0, (1,0)=c1, (0,1)=c3 exactly; the (1,1) diagonal lands at c1+c3-c0
-		// which equals c2 only for parallelograms. Close enough for cube faces visually.
-		function matrixFor(corners) {
-			const [c0, c1, , c3] = corners;
-			const a = c1[0] - c0[0], b = c1[1] - c0[1];
-			const c = c3[0] - c0[0], d = c3[1] - c0[1];
-			const e = c0[0],         fy = c0[1];
-			return `${a.toFixed(2)} ${b.toFixed(2)} ${c.toFixed(2)} ${d.toFixed(2)} ${e.toFixed(2)} ${fy.toFixed(2)}`;
-		}
-
-		// Generate per-face SMIL markup. Each face = just the ASCII text grid + a back-face
-		// culling opacity animation. No polygon outline — the cube's edges read from where
-		// adjacent face grids meet at different angles.
-		let groups = '';
-		for (let fi = 0; fi < facesDef.length; fi++) {
-			const face = facesDef[fi];
-			const matrixValues = frames.map(fr => matrixFor(fr[fi].corners)).join(';');
-			const opacityValues = frames.map(fr => fr[fi].normalZ > 0.02 ? '1' : '0').join(';');
-			const initialMatrix = matrixValues.split(';')[0];
-			const textMarkup    = buildFaceText(fi * 9973 + 17, face.charset);
-
-			groups += `
-				<g opacity="1">
-					<g transform="matrix(${initialMatrix})">
-						${textMarkup}
-						<animateTransform attributeName="transform" type="matrix" values="${matrixValues}" dur="${DUR_S}s" repeatCount="indefinite" calcMode="linear"/>
-					</g>
-					<animate attributeName="opacity" values="${opacityValues}" dur="${DUR_S}s" repeatCount="indefinite" calcMode="discrete"/>
-				</g>
-			`;
-		}
-
-		svgEl.innerHTML = `<g>${groups}</g>`;
+		requestAnimationFrame(render);
 	})();
 </script>
 
