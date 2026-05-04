@@ -508,11 +508,14 @@
 			{ idx: [0,1,5,4], normal: [ 0,-1, 0], charset: 'AVWMXY' }, // bottom -y
 		];
 
-		const NFRAMES   = 60;
-		const TILT_X    = 22 * Math.PI / 180;  // baked X-tilt for isometric flair
-		const VIEWER_Z  = 2.6;                 // perspective distance
-		const SCALE     = 1100;                // projection scale; cube fills ~most of viewBox
-		const DUR_S     = 80;                  // 80s for one full rotation = nice and slow
+		// 180 keyframes over 80s = a keyframe every ~0.44s, only 2deg of rotation between
+		// adjacent frames — small enough that SMIL's linear matrix interpolation reads as
+		// continuous spin rather than discrete slides ("PPT" effect at low frame counts).
+		const NFRAMES   = 180;
+		const TILT_X    = 22 * Math.PI / 180;
+		const VIEWER_Z  = 2.6;
+		const SCALE     = 1100;
+		const DUR_S     = 80;
 
 		const rY = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [c*p[0]+s*p[2], p[1], -s*p[0]+c*p[2]]; };
 		const rX = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0], c*p[1]-s*p[2], s*p[1]+c*p[2]]; };
@@ -545,13 +548,12 @@
 			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 		};
 
-		// Build the ASCII grid for one face. Returns the <text> markup with tspan rows.
-		// Coordinates live in face-local (0..1) space; the parent <g>'s matrix transforms
-		// them onto the face's projected quad.
-		const COLS = 22, ROWS = 14;
-		const FONT_SIZE = 0.062;   // in face-local units
-		const ROW_STEP  = 0.066;   // line spacing
-		const COL_STEP  = 0.043;   // approximate monospace advance in face-local units
+		// Build the ASCII grid for one face. Coordinates live in face-local (0..1) space;
+		// the parent <g>'s matrix transforms them onto the face's projected quad.
+		// Dense + tiny + gray = reads as background texture, not foreground content.
+		const COLS = 34, ROWS = 22;
+		const FONT_SIZE = 0.044;   // in face-local units (small)
+		const ROW_STEP  = 0.044;
 		function buildFaceText(seed, charset) {
 			const rnd = mulberry32(seed);
 			let tspans = '';
@@ -560,11 +562,11 @@
 				for (let c = 0; c < COLS; c++) {
 					line += charset[Math.floor(rnd() * charset.length)];
 				}
-				const y = (0.05 + r * ROW_STEP).toFixed(3);
-				tspans += `<tspan x="0.02" y="${y}">${line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</tspan>`;
+				const y = (0.04 + r * ROW_STEP).toFixed(3);
+				tspans += `<tspan x="0.015" y="${y}">${line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</tspan>`;
 			}
-			// We rely on font-size in user units — the matrix transform scales up to face size.
-			return `<text font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="${FONT_SIZE}" font-weight="500" fill="#fff" style="white-space:pre">${tspans}</text>`;
+			// Dim gray fill — texture, not content.
+			return `<text font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="${FONT_SIZE}" fill="rgba(255,255,255,0.22)" style="white-space:pre">${tspans}</text>`;
 		}
 
 		// Affine matrix that maps unit square (0,0)→(1,0)→(1,1)→(0,1) to the four face corners.
@@ -579,23 +581,19 @@
 			return `${a.toFixed(2)} ${b.toFixed(2)} ${c.toFixed(2)} ${d.toFixed(2)} ${e.toFixed(2)} ${fy.toFixed(2)}`;
 		}
 
-		// Generate per-face SMIL markup.
+		// Generate per-face SMIL markup. Each face = just the ASCII text grid + a back-face
+		// culling opacity animation. No polygon outline — the cube's edges read from where
+		// adjacent face grids meet at different angles.
 		let groups = '';
 		for (let fi = 0; fi < facesDef.length; fi++) {
 			const face = facesDef[fi];
 			const matrixValues = frames.map(fr => matrixFor(fr[fi].corners)).join(';');
-			const polyValues   = frames.map(fr => fr[fi].corners.map(c => `${c[0].toFixed(1)},${c[1].toFixed(1)}`).join(' ')).join(';');
-			// Slight hysteresis on opacity so faces edge-on don't flicker.
 			const opacityValues = frames.map(fr => fr[fi].normalZ > 0.02 ? '1' : '0').join(';');
 			const initialMatrix = matrixValues.split(';')[0];
-			const initialPoly   = polyValues.split(';')[0];
 			const textMarkup    = buildFaceText(fi * 9973 + 17, face.charset);
 
 			groups += `
 				<g opacity="1">
-					<polygon points="${initialPoly}" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.18)" stroke-width="1.2">
-						<animate attributeName="points" values="${polyValues}" dur="${DUR_S}s" repeatCount="indefinite" calcMode="linear"/>
-					</polygon>
 					<g transform="matrix(${initialMatrix})">
 						${textMarkup}
 						<animateTransform attributeName="transform" type="matrix" values="${matrixValues}" dur="${DUR_S}s" repeatCount="indefinite" calcMode="linear"/>
