@@ -522,11 +522,13 @@
 
 		// ---- Cube + projection ----
 		const CUBE = 1.0;     // cube half-extent in world units
-		const ZOOM = 0.82;    // cube size; smaller ZOOM = bigger cube on screen
-		// Cube anchored low-left. Top sits ~25% from the hero's upper edge with clear padding;
-		// ~35% of the cube area clips off the bottom edge of the section.
-		const POS_X_NORM = -0.55;
-		const POS_Y_NORM = -0.7;
+		const ZOOM = 0.88;    // cube slightly trimmed so the deeper-corner position keeps
+		                      // top padding from the hero's upper edge
+		// Cube center pushed deeper into the lower-left: ~15% from the section's left edge
+		// and ~85% from the top, so a sliver of the left side clips off and ~40% of the
+		// projected cube area falls below the section bottom.
+		const POS_X_NORM = -0.7;
+		const POS_Y_NORM = -0.78;
 
 		// ---- Lighting ----
 		const SHADE_GAMMA = 0.75;
@@ -717,7 +719,17 @@
 						const raw = Math.pow(faceShades[hitFace], SHADE_GAMMA);
 						const shade = SHADE_FLOOR + (1 - SHADE_FLOOR) * raw;
 						const palette = PALETTES[hitFace];
-						const idx = Math.min(palette.length - 1, Math.max(0, Math.floor(shade * palette.length)));
+						// Ordered dither: instead of every cell on a face flipping glyph
+						// in lockstep at discrete shade boundaries (the "clunky" pop), each
+						// cell stochastically picks between its two nearest glyph levels
+						// based on its stable hash. Result: face shading transitions look
+						// continuous across the rotation rather than stepping in 5 bands.
+						const exact = shade * (palette.length - 1);
+						const baseIdx = Math.floor(exact);
+						const frac = exact - baseIdx;
+						const idx = (baseIdx < palette.length - 1 && cellHash(cx, cy) < frac)
+							? baseIdx + 1
+							: baseIdx;
 						out += palette[idx];
 					}
 				}
