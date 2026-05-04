@@ -522,25 +522,23 @@
 
 		// ---- Cube + projection ----
 		const CUBE = 1.0;     // cube half-extent in world units
-		const ZOOM = 0.88;    // cube slightly trimmed so the deeper-corner position keeps
-		                      // top padding from the hero's upper edge
-		// Cube center pushed deeper into the lower-left: ~15% from the section's left edge
-		// and ~85% from the top, so a sliver of the left side clips off and ~40% of the
-		// projected cube area falls below the section bottom.
+		const ZOOM = 1.1;     // larger ZOOM = smaller cube on screen (cube ~25% smaller)
+		// Cube anchored deep in the lower-left: top sits around hero mid-height, ~35% of
+		// the cube area clips off the bottom edge.
 		const POS_X_NORM = -0.7;
 		const POS_Y_NORM = -0.78;
 
-		// Each face has a single, fixed glyph — no shading-driven variation. Faces are
-		// distinguished by glyph IDENTITY (shape) instead of brightness, so a face's
-		// texture stays uniform and rotation only changes WHICH faces are visible (no
-		// within-face glyph flicker as shade crosses band boundaries).
+		// Each face has a single, fixed glyph — uniform texture per face, no within-face
+		// variation. Glyphs picked for HIGH contrast between adjacent faces: pair a dense
+		// glyph (#, %) with a sparse one (-, :) on opposite-density faces, plus distinct
+		// shapes (round o vs angular #) so the cube reads as 3D from glyph identity alone.
 		const FACE_GLYPHS = [
-			'/',   // 0: +X right  — right-leaning stroke
-			'\\',  // 1: -X left   — left-leaning stroke
-			'=',   // 2: +Y top    — horizontal
-			'-',   // 3: -Y bottom — light horizontal
-			'+',   // 4: +Z front  — round
-			'*',   // 5: -Z back   — denser dot
+			'o',   // 0: +X right  — round
+			'O',   // 1: -X left   — denser round (rarely paired with right)
+			'#',   // 2: +Y top    — heavy lattice (top usually brightest area)
+			':',   // 3: -Y bottom — sparse, distinct from top
+			'+',   // 4: +Z front  — angular cross
+			'%',   // 5: -Z back   — dense diagonal
 		];
 
 		// Background fill: every non-cube cell gets the same smallest-footprint ASCII glyph
