@@ -512,22 +512,18 @@
 
 		// ---- Geometry / lighting setup ----
 		// ---- Animation timing ----
-		// Three independent axis rotations with mutually-irrational periods. Because the
-		// periods don't share a common multiple, the cube never returns to the same
-		// orientation; the effective spin axis is always evolving — i.e. continuous
-		// precession produced by multi-axis combination, not a separate mechanism.
-		const ROT_Y_PER_SEC =  (2 * Math.PI) / 181; // ≈ 181s/rev, primary turntable spin
-		const ROT_X_PER_SEC =  (2 * Math.PI) / 113; // ≈ 113s/rev, end-over-end tumble
-		const ROT_Z_PER_SEC = -(2 * Math.PI) /  89; // ≈  89s/rev, reverse roll about depth
+		const ROT_PER_SEC   = (2 * Math.PI) / 180; // 180s per full Y-axis revolution (very slow)
+		const TUMBLE_AMP    = 6 * Math.PI / 180;   // ±6° X-axis wobble
+		const TUMBLE_PERIOD = 38;                   // seconds for one tumble cycle
+		const TILT_X_BASE   = 22 * Math.PI / 180;  // resting X-tilt around which we wobble
 
 		// ---- Cube + projection ----
 		const CUBE = 1.0;     // cube half-extent in world units
-		const ZOOM = 0.82;    // cube size; smaller ZOOM = bigger cube on screen
-		// Cube center anchored low-left. With these values the cube top sits at ~25% from
-		// the hero's top (clear padding from the upper border) and ~35% of the cube area
-		// clips off the bottom edge.
+		const ZOOM = 0.75;    // smaller ZOOM = cube larger on screen (≈20% bigger than before)
+		// Cube center pushed deeper into the lower-left — bottom edge clips off the section
+		// (~30% of the cube area falls outside the visible hero, mostly off the bottom).
 		const POS_X_NORM = -0.55;
-		const POS_Y_NORM = -0.7;
+		const POS_Y_NORM = -0.45;
 
 		// ---- Lighting ----
 		const SHADE_GAMMA = 0.75;
@@ -600,39 +596,32 @@
 		}
 
 		// ---- Render loop ----
-		// Initial offsets so the cube starts in a readable isometric pose rather than edge-on.
-		let rotX = Math.PI / 8;   // ≈ 22°
-		let rotY = Math.PI / 8;
-		let rotZ = 0;
+		let rotY = 0;
 		let lastT = performance.now();
+		const startT = lastT;
 
 		function render(now) {
 			const dt = (now - lastT) / 1000;
 			lastT = now;
-			rotX += dt * ROT_X_PER_SEC;
-			rotY += dt * ROT_Y_PER_SEC;
-			rotZ += dt * ROT_Z_PER_SEC;
+			rotY += dt * ROT_PER_SEC;
 
-			const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+			// Subtle 2-axis tumble: gently oscillate the X-tilt around its base value.
+			const tumblePhase = ((now - startT) / 1000) * (2 * Math.PI / TUMBLE_PERIOD);
+			const tiltX = TILT_X_BASE + Math.sin(tumblePhase) * TUMBLE_AMP;
+
 			const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
-			const cosZ = Math.cos(rotZ), sinZ = Math.sin(rotZ);
+			const cosX = Math.cos(tiltX), sinX = Math.sin(tiltX);
 
-			// Pre-rotate face normals: local → world via rY, then rX, then rZ.
+			// Pre-rotate face normals to world space and compute Lambert shade per face.
 			const faceShades = new Array(6);
 			for (let fi = 0; fi < 6; fi++) {
 				const n = faceNormals[fi];
-				// rY around vertical axis
-				const r1x = cosY * n[0] + sinY * n[2];
-				const r1y = n[1];
-				const r1z = -sinY * n[0] + cosY * n[2];
-				// rX around horizontal axis
-				const r2x = r1x;
-				const r2y = cosX * r1y - sinX * r1z;
-				const r2z = sinX * r1y + cosX * r1z;
-				// rZ around depth axis (toward camera)
-				const wx = cosZ * r2x - sinZ * r2y;
-				const wy = sinZ * r2x + cosZ * r2y;
-				const wz = r2z;
+				const rx = cosY * n[0] + sinY * n[2];
+				const ry = n[1];
+				const rz = -sinY * n[0] + cosY * n[2];
+				const wx = rx;
+				const wy = cosX * ry - sinX * rz;
+				const wz = sinX * ry + cosX * rz;
 				faceShades[fi] = Math.max(0, wx * lWorld[0] + wy * lWorld[1] + wz * lWorld[2]);
 			}
 
@@ -654,26 +643,16 @@
 					let ox = ndcX, oy = ndcY, oz = 5;
 					let dx = 0,    dy = 0,    dz = -1;
 
-					// Forward face rotation was Y → X → Z, so inverse on the ray is Z⁻¹ → X⁻¹ → Y⁻¹.
-					// Inverse rZ (-rotZ):  x' = c*x + s*y,  y' = -s*x + c*y
+					// Apply inverse rX (a -> -a):  y' = c*y + s*z,  z' = -s*y + c*z
 					{
-						const ox2 =  cosZ * ox + sinZ * oy;
-						const oy2 = -sinZ * ox + cosZ * oy;
-						ox = ox2; oy = oy2;
-						const dx2 =  cosZ * dx + sinZ * dy;
-						const dy2 = -sinZ * dx + cosZ * dy;
-						dx = dx2; dy = dy2;
-					}
-					// Inverse rX (-rotX):  y' = c*y + s*z,  z' = -s*y + c*z
-					{
-						const oy2 =  cosX * oy + sinX * oz;
+						const oy2 = cosX * oy + sinX * oz;
 						const oz2 = -sinX * oy + cosX * oz;
 						oy = oy2; oz = oz2;
-						const dy2 =  cosX * dy + sinX * dz;
+						const dy2 = cosX * dy + sinX * dz;
 						const dz2 = -sinX * dy + cosX * dz;
 						dy = dy2; dz = dz2;
 					}
-					// Inverse rY (-rotY):  x' = c*x - s*z,  z' = s*x + c*z
+					// Apply inverse rY (a -> -a):  x' = c*x - s*z,  z' = s*x + c*z
 					{
 						const ox2 = cosY * ox - sinY * oz;
 						const oz2 = sinY * ox + cosY * oz;
