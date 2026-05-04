@@ -123,7 +123,9 @@
 			font-size: 12px;
 			line-height: 12px;
 			letter-spacing: 0;
-			color: rgba(255, 255, 255, 0.65);
+			/* Match the dashed bento-card border colour (border-gray-800 @ 70% alpha) so
+			   the cube reads as another structural element of the page, not foreground. */
+			color: rgba(31, 41, 55, 0.7);
 			white-space: pre;
 			user-select: none;
 			/* Composite mask: dim near title + buttons, fade top edge. */
@@ -509,16 +511,26 @@
 		if (!pre || !hero) return;
 
 		// ---- Geometry / lighting setup ----
-		const TILT_X = 22 * Math.PI / 180;        // baked X-tilt for isometric flair
-		const ROT_PER_SEC = (2 * Math.PI) / 90;   // 90 seconds per full Y-axis revolution
-		const CUBE = 1.0;                          // cube half-extent in world units
-		const ZOOM = 0.85;                         // < 1 zooms in; 0.85 = cube fills ~70% of viewport height
-		const SHADE_GAMMA = 0.7;                   // < 1 = more contrast between faces (darker dark, brighter bright)
-		const RAMP = " .,-~:;=+*#%@";             // 13-step shading ramp, light to dark
+		// ---- Animation timing ----
+		const ROT_PER_SEC   = (2 * Math.PI) / 180; // 180s per full Y-axis revolution (very slow)
+		const TUMBLE_AMP    = 6 * Math.PI / 180;   // ±6° X-axis wobble
+		const TUMBLE_PERIOD = 38;                   // seconds for one tumble cycle
+		const TILT_X_BASE   = 22 * Math.PI / 180;  // resting X-tilt around which we wobble
 
-		// Light direction in world space — pulled to the right so the right face becomes
-		// the brightest, top is medium, front (toward viewer) is dimmest. This gives the
-		// cube a strong "carved" 3D look at all rotations. Pre-normalized.
+		// ---- Cube + projection ----
+		const CUBE = 1.0;     // cube half-extent in world units
+		const ZOOM = 1.15;    // > 1 makes the cube smaller relative to the viewport so it
+		                      // can sit clearly in the bottom-left corner without overpowering
+		// Cube center anchored at ~22% from left, ~78% from top of the hero, with the bottom
+		// edge of the cube partly clipping below the section.
+		const POS_X_NORM = -0.55;
+		const POS_Y_NORM = -0.55;
+
+		// ---- Lighting ----
+		const SHADE_GAMMA = 0.75;
+		const SHADE_FLOOR = 0.18;  // ensures even the dimmest visible face still picks a non-blank glyph
+
+		// Light direction in world (pulled mostly sideways for clear face contrast). Pre-normalized.
 		const lWorld = (() => {
 			const v = [0.85, 0.45, 0.3];
 			const m = Math.hypot(v[0], v[1], v[2]);
@@ -531,6 +543,22 @@
 			[ 0, 1, 0], [ 0,-1, 0],   // 2 = +Y, 3 = -Y
 			[ 0, 0, 1], [ 0, 0,-1],   // 4 = +Z, 5 = -Z
 		];
+
+		// Per-face glyph palettes (light → dark). Each face has a distinct character "feel"
+		// so faces differ texturally (not just by brightness). All entries are visible glyphs
+		// — never space — so faces never blank out at low shade.
+		const PALETTES = [
+			'.;/I#',   // 0: +X right  — right-leaning verticals
+			'.;%I#',   // 1: -X left   — slightly different but matched weight
+			'.-=+#',   // 2: +Y top    — horizontal strokes
+			'.,_=#',   // 3: -Y bottom — sparse low feel
+			'.+o*#',   // 4: +Z front  — round
+			'.:|+#',   // 5: -Z back   — mixed
+		];
+
+		// Dim "starfield" glyphs for non-cube cells — keep the empty space alive without
+		// competing with the cube. Stable per cell-position so it doesn't flicker.
+		const STAR_DENSITY = 0.025; // 2.5% of empty cells get a star
 
 		// ---- Grid sizing — derived from hero pixel size + measured monospace metrics ----
 		let cols = 0, rows = 0, charAspect = 0.55;
@@ -559,23 +587,35 @@
 			resizeT = setTimeout(resize, 100);
 		});
 
+		// Stable per-cell pseudo-random for the starfield. Bit-mixing seed by (cx, cy)
+		// so empty cells render the same star pattern every frame — no flicker.
+		function cellHash(cx, cy) {
+			let h = (cx * 374761393) ^ (cy * 668265263);
+			h = (h ^ (h >>> 13)) * 1274126177;
+			return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+		}
+
 		// ---- Render loop ----
 		let rotY = 0;
 		let lastT = performance.now();
+		const startT = lastT;
 
 		function render(now) {
 			const dt = (now - lastT) / 1000;
 			lastT = now;
 			rotY += dt * ROT_PER_SEC;
 
+			// Subtle 2-axis tumble: gently oscillate the X-tilt around its base value.
+			const tumblePhase = ((now - startT) / 1000) * (2 * Math.PI / TUMBLE_PERIOD);
+			const tiltX = TILT_X_BASE + Math.sin(tumblePhase) * TUMBLE_AMP;
+
 			const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
-			const cosX = Math.cos(TILT_X), sinX = Math.sin(TILT_X);
+			const cosX = Math.cos(tiltX), sinX = Math.sin(tiltX);
 
 			// Pre-rotate face normals to world space and compute Lambert shade per face.
 			const faceShades = new Array(6);
 			for (let fi = 0; fi < 6; fi++) {
 				const n = faceNormals[fi];
-				// Apply rY then rX (forward rotation) to take local -> world.
 				const rx = cosY * n[0] + sinY * n[2];
 				const ry = n[1];
 				const rz = -sinY * n[0] + cosY * n[2];
@@ -588,14 +628,16 @@
 			const screenAspect = (cols * charAspect) / rows;
 			const ZX = screenAspect * ZOOM;
 			const ZY = ZOOM;
+			// World-space offsets that shift the cube center to (POS_X_NORM, POS_Y_NORM) in NDC.
+			const offX = POS_X_NORM * ZX;
+			const offY = POS_Y_NORM * ZY;
 
 			let out = '';
-			const rampMax = RAMP.length - 1;
 
 			for (let cy = 0; cy < rows; cy++) {
-				const ndcY = -((cy + 0.5) / rows * 2 - 1) * ZY;
+				const ndcY = -((cy + 0.5) / rows * 2 - 1) * ZY - offY;
 				for (let cx = 0; cx < cols; cx++) {
-					const ndcX = ((cx + 0.5) / cols * 2 - 1) * ZX;
+					const ndcX = ((cx + 0.5) / cols * 2 - 1) * ZX - offX;
 
 					// Ray in world: origin (ndcX, ndcY, +5), direction (0, 0, -1).
 					let ox = ndcX, oy = ndcY, oz = 5;
@@ -662,13 +704,16 @@
 					} else if (!outside && (oz < -CUBE || oz > CUBE)) outside = true;
 
 					if (outside || tmin > tmax || tmin < 0 || hitFace < 0) {
-						out += ' ';
+						// Empty cell: very rarely emit a dim star so the bg has a touch of life.
+						out += (cellHash(cx, cy) < STAR_DENSITY) ? '·' : ' ';
 					} else {
-						// Apply gamma so shade ranges expand — a face at shade 0.5 reads as
-						// noticeably brighter than 0.4, instead of both rounding to the same glyph.
-						const shade = Math.pow(faceShades[hitFace], SHADE_GAMMA);
-						const idx = Math.min(rampMax, Math.max(0, Math.floor(shade * RAMP.length)));
-						out += RAMP[idx];
+						// Apply gamma + a shade floor so even the dimmest visible face still
+						// picks a glyph at roughly index 1 — never blanks out.
+						const raw = Math.pow(faceShades[hitFace], SHADE_GAMMA);
+						const shade = SHADE_FLOOR + (1 - SHADE_FLOOR) * raw;
+						const palette = PALETTES[hitFace];
+						const idx = Math.min(palette.length - 1, Math.max(0, Math.floor(shade * palette.length)));
+						out += palette[idx];
 					}
 				}
 				out += '\n';
