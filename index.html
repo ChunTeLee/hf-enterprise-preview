@@ -528,6 +528,14 @@
 		const POS_X_NORM = -0.7;
 		const POS_Y_NORM = -0.78;
 
+		// Cylinder anchored at the opposite corner (top-right). Same world rotation as the
+		// cube, but its own translation in screen-NDC. Geometry is axis-aligned in cylinder-
+		// local frame: vertical axis along Y, radius CYL_R, half-height CYL_H.
+		const POS_X_CYL = +0.65;
+		const POS_Y_CYL = +0.7;
+		const CYL_R = 0.62;
+		const CYL_H = 0.85;
+
 		// Each face has a single, fixed glyph — uniform texture per face, no within-face
 		// variation. Glyphs picked for HIGH contrast between adjacent faces: pair a dense
 		// glyph (#, %) with a sparse one (-, :) on opposite-density faces, plus distinct
@@ -541,10 +549,23 @@
 			'%',   // 5: -Z back   — dense diagonal
 		];
 
-		// Background fill: every non-cube cell gets the same smallest-footprint ASCII glyph
-		// (the period). Uniform dense fill, not sparkle — the cube reads as denser glyph
-		// coverage emerging from a continuous low-density dot field.
-		const BG_GLYPH = '.';
+		// Cylinder parts: 0 = side wall, 1 = top cap, 2 = bottom cap. One uniform glyph
+		// per part — same "uniform texture per surface" rule as the cube.
+		const CYL_GLYPHS = [
+			'H',   // 0: side wall — vertical strokes, dense
+			'=',   // 1: top cap   — horizontal lines, looking down at top
+			'~',   // 2: bottom cap
+		];
+
+		// Background fill: a sparse half-density dot pattern stable per cell. Period
+		// chars are scattered over a checker-like layout so the bg has visible texture
+		// but is roughly half as dense as the previous full-period fill — the cube and
+		// cylinder (which use uniformly dense glyphs) read as clearly heavier figures
+		// against this lighter ground.
+		function bgGlyph(cx, cy) {
+			// Hash-based half-density dot pattern (50% of cells get '.', rest are blank).
+			return cellHash(cx, cy) < 0.5 ? '.' : ' ';
+		}
 
 		// ---- Grid sizing — derived from hero pixel size + measured monospace metrics ----
 		let cols = 0, rows = 0, charAspect = 0.55;
@@ -602,91 +623,165 @@
 			const screenAspect = (cols * charAspect) / rows;
 			const ZX = screenAspect * ZOOM;
 			const ZY = ZOOM;
-			// World-space offsets that shift the cube center to (POS_X_NORM, POS_Y_NORM) in NDC.
-			const offX = POS_X_NORM * ZX;
-			const offY = POS_Y_NORM * ZY;
+			// World-space offsets that translate each object's center to its NDC position.
+			const offX_cube = POS_X_NORM * ZX;
+			const offY_cube = POS_Y_NORM * ZY;
+			const offX_cyl  = POS_X_CYL  * ZX;
+			const offY_cyl  = POS_Y_CYL  * ZY;
 
 			let out = '';
 
 			for (let cy = 0; cy < rows; cy++) {
-				const ndcY = -((cy + 0.5) / rows * 2 - 1) * ZY - offY;
+				const ndcYraw = -((cy + 0.5) / rows * 2 - 1) * ZY;
 				for (let cx = 0; cx < cols; cx++) {
-					const ndcX = ((cx + 0.5) / cols * 2 - 1) * ZX - offX;
+					const ndcXraw = ((cx + 0.5) / cols * 2 - 1) * ZX;
 
-					// Ray in world: origin (ndcX, ndcY, +5), direction (0, 0, -1).
-					let ox = ndcX, oy = ndcY, oz = 5;
-					let dx = 0,    dy = 0,    dz = -1;
-
-					// Apply inverse rX (a -> -a):  y' = c*y + s*z,  z' = -s*y + c*z
+					// ---- Cube ray test ----
+					// Ray origin offset to cube-centered, direction (0, 0, -1) in world.
+					let cox = ndcXraw - offX_cube, coy = ndcYraw - offY_cube, coz = 5;
+					let cdx = 0, cdy = 0, cdz = -1;
+					// Inverse rX
 					{
-						const oy2 = cosX * oy + sinX * oz;
-						const oz2 = -sinX * oy + cosX * oz;
-						oy = oy2; oz = oz2;
-						const dy2 = cosX * dy + sinX * dz;
-						const dz2 = -sinX * dy + cosX * dz;
-						dy = dy2; dz = dz2;
+						const oy2 = cosX * coy + sinX * coz;
+						const oz2 = -sinX * coy + cosX * coz;
+						coy = oy2; coz = oz2;
+						const dy2 = cosX * cdy + sinX * cdz;
+						const dz2 = -sinX * cdy + cosX * cdz;
+						cdy = dy2; cdz = dz2;
 					}
-					// Apply inverse rY (a -> -a):  x' = c*x - s*z,  z' = s*x + c*z
+					// Inverse rY
 					{
-						const ox2 = cosY * ox - sinY * oz;
-						const oz2 = sinY * ox + cosY * oz;
-						ox = ox2; oz = oz2;
-						const dx2 = cosY * dx - sinY * dz;
-						const dz2 = sinY * dx + cosY * dz;
-						dx = dx2; dz = dz2;
+						const ox2 = cosY * cox - sinY * coz;
+						const oz2 = sinY * cox + cosY * coz;
+						cox = ox2; coz = oz2;
+						const dx2 = cosY * cdx - sinY * cdz;
+						const dz2 = sinY * cdx + cosY * cdz;
+						cdx = dx2; cdz = dz2;
 					}
 
-					// Slab test against axis-aligned [-CUBE, CUBE]^3.
-					let tmin = -Infinity, tmax = Infinity;
-					let hitFace = -1;
-					let outside = false;
+					let cubeT = Infinity, hitFace = -1;
+					{
+						let tmin = -Infinity, tmax = Infinity;
+						let outside = false;
+						// X slab
+						if (Math.abs(cdx) > 1e-9) {
+							const inv = 1 / cdx;
+							const t1 = (-CUBE - cox) * inv;
+							const t2 = ( CUBE - cox) * inv;
+							let near, far, face;
+							if (t1 < t2) { near = t1; far = t2; face = 1; }
+							else         { near = t2; far = t1; face = 0; }
+							if (near > tmin) { tmin = near; hitFace = face; }
+							if (far  < tmax) tmax = far;
+						} else if (cox < -CUBE || cox > CUBE) outside = true;
+						// Y slab
+						if (!outside && Math.abs(cdy) > 1e-9) {
+							const inv = 1 / cdy;
+							const t1 = (-CUBE - coy) * inv;
+							const t2 = ( CUBE - coy) * inv;
+							let near, far, face;
+							if (t1 < t2) { near = t1; far = t2; face = 3; }
+							else         { near = t2; far = t1; face = 2; }
+							if (near > tmin) { tmin = near; hitFace = face; }
+							if (far  < tmax) tmax = far;
+						} else if (!outside && (coy < -CUBE || coy > CUBE)) outside = true;
+						// Z slab
+						if (!outside && Math.abs(cdz) > 1e-9) {
+							const inv = 1 / cdz;
+							const t1 = (-CUBE - coz) * inv;
+							const t2 = ( CUBE - coz) * inv;
+							let near, far, face;
+							if (t1 < t2) { near = t1; far = t2; face = 5; }
+							else         { near = t2; far = t1; face = 4; }
+							if (near > tmin) { tmin = near; hitFace = face; }
+							if (far  < tmax) tmax = far;
+						} else if (!outside && (coz < -CUBE || coz > CUBE)) outside = true;
 
-					// X slab
-					if (Math.abs(dx) > 1e-9) {
-						const inv = 1 / dx;
-						const t1 = (-CUBE - ox) * inv;
-						const t2 = ( CUBE - ox) * inv;
-						let near, far, face;
-						if (t1 < t2) { near = t1; far = t2; face = 1; }
-						else         { near = t2; far = t1; face = 0; }
-						if (near > tmin) { tmin = near; hitFace = face; }
-						if (far  < tmax) tmax = far;
-					} else if (ox < -CUBE || ox > CUBE) outside = true;
+						if (!outside && tmin <= tmax && tmin >= 0 && hitFace >= 0) {
+							cubeT = tmin;
+						} else {
+							hitFace = -1;
+						}
+					}
 
-					// Y slab
-					if (!outside && Math.abs(dy) > 1e-9) {
-						const inv = 1 / dy;
-						const t1 = (-CUBE - oy) * inv;
-						const t2 = ( CUBE - oy) * inv;
-						let near, far, face;
-						if (t1 < t2) { near = t1; far = t2; face = 3; }
-						else         { near = t2; far = t1; face = 2; }
-						if (near > tmin) { tmin = near; hitFace = face; }
-						if (far  < tmax) tmax = far;
-					} else if (!outside && (oy < -CUBE || oy > CUBE)) outside = true;
+					// ---- Cylinder ray test ----
+					// Same shared rotation, different translation.
+					let yox = ndcXraw - offX_cyl, yoy = ndcYraw - offY_cyl, yoz = 5;
+					let ydx = 0, ydy = 0, ydz = -1;
+					// Inverse rX
+					{
+						const oy2 = cosX * yoy + sinX * yoz;
+						const oz2 = -sinX * yoy + cosX * yoz;
+						yoy = oy2; yoz = oz2;
+						const dy2 = cosX * ydy + sinX * ydz;
+						const dz2 = -sinX * ydy + cosX * ydz;
+						ydy = dy2; ydz = dz2;
+					}
+					// Inverse rY
+					{
+						const ox2 = cosY * yox - sinY * yoz;
+						const oz2 = sinY * yox + cosY * yoz;
+						yox = ox2; yoz = oz2;
+						const dx2 = cosY * ydx - sinY * ydz;
+						const dz2 = sinY * ydx + cosY * ydz;
+						ydx = dx2; ydz = dz2;
+					}
 
-					// Z slab
-					if (!outside && Math.abs(dz) > 1e-9) {
-						const inv = 1 / dz;
-						const t1 = (-CUBE - oz) * inv;
-						const t2 = ( CUBE - oz) * inv;
-						let near, far, face;
-						if (t1 < t2) { near = t1; far = t2; face = 5; }
-						else         { near = t2; far = t1; face = 4; }
-						if (near > tmin) { tmin = near; hitFace = face; }
-						if (far  < tmax) tmax = far;
-					} else if (!outside && (oz < -CUBE || oz > CUBE)) outside = true;
+					// Vertical-axis cylinder: x^2 + z^2 = R^2 for the side wall, |y| <= H for caps.
+					let cylT = Infinity, cylPart = -1;
+					{
+						// Side wall: solve quadratic in t for x^2 + z^2 = R^2
+						const a = ydx * ydx + ydz * ydz;
+						const b = 2 * (yox * ydx + yoz * ydz);
+						const c = yox * yox + yoz * yoz - CYL_R * CYL_R;
+						if (a > 1e-9) {
+							const disc = b * b - 4 * a * c;
+							if (disc >= 0) {
+								const sq = Math.sqrt(disc);
+								// Test both roots; pick smaller t > 0 with y in range.
+								const ts = [(-b - sq) / (2 * a), (-b + sq) / (2 * a)];
+								for (let i = 0; i < 2; i++) {
+									const t = ts[i];
+									if (t > 0 && t < cylT) {
+										const yh = yoy + t * ydy;
+										if (yh >= -CYL_H && yh <= CYL_H) {
+											cylT = t; cylPart = 0;
+										}
+									}
+								}
+							}
+						}
+						// Top/bottom caps: y = ±H plane, then check x² + z² ≤ R²
+						if (Math.abs(ydy) > 1e-9) {
+							const invDy = 1 / ydy;
+							// Top cap (y = +H)
+							const tT = (CYL_H - yoy) * invDy;
+							if (tT > 0 && tT < cylT) {
+								const xh = yox + tT * ydx;
+								const zh = yoz + tT * ydz;
+								if (xh * xh + zh * zh <= CYL_R * CYL_R) {
+									cylT = tT; cylPart = 1;
+								}
+							}
+							// Bottom cap (y = -H)
+							const tB = (-CYL_H - yoy) * invDy;
+							if (tB > 0 && tB < cylT) {
+								const xh = yox + tB * ydx;
+								const zh = yoz + tB * ydz;
+								if (xh * xh + zh * zh <= CYL_R * CYL_R) {
+									cylT = tB; cylPart = 2;
+								}
+							}
+						}
+					}
 
-					if (outside || tmin > tmax || tmin < 0 || hitFace < 0) {
-						// Every non-cube cell gets the period glyph — uniform dense low-density
-						// fill so the bg is fully populated with the smallest ASCII char, not
-						// blank or sprinkled.
-						out += BG_GLYPH;
-					} else {
-						// One fixed glyph per face. Texture stays uniform across each face;
-						// rotation reads as smooth because only WHICH faces are visible
-						// changes, not the glyphs within them.
+					// ---- Pick whichever hit is closer (or bg) ----
+					if (cylPart >= 0 && (hitFace < 0 || cylT < cubeT)) {
+						out += CYL_GLYPHS[cylPart];
+					} else if (hitFace >= 0) {
 						out += FACE_GLYPHS[hitFace];
+					} else {
+						out += bgGlyph(cx, cy);
 					}
 				}
 				out += '\n';
