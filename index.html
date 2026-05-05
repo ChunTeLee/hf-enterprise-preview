@@ -528,13 +528,19 @@
 		const POS_X_NORM = -0.7;
 		const POS_Y_NORM = -0.78;
 
-		// Cylinder anchored at the opposite corner (top-right). Same world rotation as the
-		// cube, but its own translation in screen-NDC. Geometry is axis-aligned in cylinder-
-		// local frame: vertical axis along Y, radius CYL_R, half-height CYL_H.
-		const POS_X_CYL = +0.65;
-		const POS_Y_CYL = +0.7;
-		const CYL_R = 0.62;
-		const CYL_H = 0.85;
+		// Cylinder anchored deep in the upper-right corner so it clips both the top edge
+		// and the right edge of the section. Larger than before.
+		const POS_X_CYL = +0.88;
+		const POS_Y_CYL = +0.78;
+		const CYL_R = 0.75;
+		const CYL_H = 1.05;
+
+		// Per-object constant Z-axis tilts (composed OUTSIDE the shared spin rotation).
+		// The cube leans slightly counter-clockwise on screen; the cylinder leans the
+		// opposite way and a touch more — two different axes of "off-vertical" energy
+		// instead of both spinning around perfect Y.
+		const CUBE_TILT_Z = -12 * Math.PI / 180;
+		const CYL_TILT_Z  = +18 * Math.PI / 180;
 
 		// Each face has a single, fixed glyph — uniform texture per face, no within-face
 		// variation. Glyphs picked for HIGH contrast between adjacent faces: pair a dense
@@ -618,6 +624,9 @@
 
 			const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
 			const cosX = Math.cos(tiltX), sinX = Math.sin(tiltX);
+			// Per-object Z-axis tilt — constant (doesn't animate), pre-computed once per frame.
+			const cosCubeZ = Math.cos(CUBE_TILT_Z), sinCubeZ = Math.sin(CUBE_TILT_Z);
+			const cosCylZ  = Math.cos(CYL_TILT_Z),  sinCylZ  = Math.sin(CYL_TILT_Z);
 			// No per-frame Lambert shading — each face uses its fixed FACE_GLYPHS entry.
 
 			const screenAspect = (cols * charAspect) / rows;
@@ -640,6 +649,16 @@
 					// Ray origin offset to cube-centered, direction (0, 0, -1) in world.
 					let cox = ndcXraw - offX_cube, coy = ndcYraw - offY_cube, coz = 5;
 					let cdx = 0, cdy = 0, cdz = -1;
+					// Inverse cube Z-tilt (peel off the per-object outer roll first):
+					//   x' = c*x + s*y,  y' = -s*x + c*y
+					{
+						const ox2 =  cosCubeZ * cox + sinCubeZ * coy;
+						const oy2 = -sinCubeZ * cox + cosCubeZ * coy;
+						cox = ox2; coy = oy2;
+						const dx2 =  cosCubeZ * cdx + sinCubeZ * cdy;
+						const dy2 = -sinCubeZ * cdx + cosCubeZ * cdy;
+						cdx = dx2; cdy = dy2;
+					}
 					// Inverse rX
 					{
 						const oy2 = cosX * coy + sinX * coz;
@@ -705,9 +724,18 @@
 					}
 
 					// ---- Cylinder ray test ----
-					// Same shared rotation, different translation.
+					// Same shared rotation, different translation, plus its own Z-tilt.
 					let yox = ndcXraw - offX_cyl, yoy = ndcYraw - offY_cyl, yoz = 5;
 					let ydx = 0, ydy = 0, ydz = -1;
+					// Inverse cylinder Z-tilt (peel off the per-object outer roll first):
+					{
+						const ox2 =  cosCylZ * yox + sinCylZ * yoy;
+						const oy2 = -sinCylZ * yox + cosCylZ * yoy;
+						yox = ox2; yoy = oy2;
+						const dx2 =  cosCylZ * ydx + sinCylZ * ydy;
+						const dy2 = -sinCylZ * ydx + cosCylZ * ydy;
+						ydx = dx2; ydy = dy2;
+					}
 					// Inverse rX
 					{
 						const oy2 = cosX * yoy + sinX * yoz;
