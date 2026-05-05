@@ -559,19 +559,27 @@
 		// is curved, so a single glyph would make it look flat — we shade it per pixel.
 		const CYL_TOP_GLYPH    = '=';
 		const CYL_BOTTOM_GLYPH = '~';
-		// Longer ramp = smaller jumps between adjacent glyphs (10 levels instead of 7).
-		const CYL_SIDE_RAMP    = '.,:;+=*xH#';
-		// Gamma < 1 expands the mid-tone range so the gradient doesn't bunch into a few
-		// levels — perceptually smoother spread.
+		// 16-step ramp picked from the classic Paul Bourke ASCII shade scale, trimmed to
+		// glyphs whose visual density progresses cleanly at small monospace sizes. Each
+		// band is now ≈6% of shade range so glyph jumps are tiny.
+		const CYL_SIDE_RAMP    = ".'`,:;-+=*coOH#@";
+		// Gamma < 1 expands mid-tones so the bright stripe doesn't crush into the top of
+		// the ramp; mid shades land on mid glyphs as you'd visually expect.
 		const SHADE_GAMMA      = 0.7;
-		// Bayer 4×4 ordered dither: each cell has a fixed threshold in [0,1). At a glyph-
-		// band boundary, cells with threshold < frac get the brighter glyph; the result is
-		// a regular crosshatch transition between bands instead of a hard edge.
-		const BAYER_4 = new Float32Array([
-			0/16,  8/16,  2/16, 10/16,
-			12/16,  4/16, 14/16,  6/16,
-			3/16, 11/16,  1/16,  9/16,
-			15/16,  7/16, 13/16,  5/16,
+		// Bayer 8×8 ordered dither (64 thresholds in [0,1)). At each glyph-band boundary
+		// the cell's stable threshold is compared to the fractional position — cells with
+		// threshold < frac get the brighter glyph. 8×8 (vs 4×4) breaks the boundary into
+		// a finer crosshatch so the transition reads as a continuous gradient instead of
+		// a visible 4-cell mosaic.
+		const BAYER_8 = new Float32Array([
+			 0/64, 32/64,  8/64, 40/64,  2/64, 34/64, 10/64, 42/64,
+			48/64, 16/64, 56/64, 24/64, 50/64, 18/64, 58/64, 26/64,
+			12/64, 44/64,  4/64, 36/64, 14/64, 46/64,  6/64, 38/64,
+			60/64, 28/64, 52/64, 20/64, 62/64, 30/64, 54/64, 22/64,
+			 3/64, 35/64, 11/64, 43/64,  1/64, 33/64,  9/64, 41/64,
+			51/64, 19/64, 59/64, 27/64, 49/64, 17/64, 57/64, 25/64,
+			15/64, 47/64,  7/64, 39/64, 13/64, 45/64,  5/64, 37/64,
+			63/64, 31/64, 55/64, 23/64, 61/64, 29/64, 53/64, 21/64,
 		]);
 		// World-space light direction (mostly horizontal so the side wall's brightest stripe
 		// is on whichever radial side currently faces the light). Pre-normalized.
@@ -738,10 +746,23 @@
 					}
 
 					// ---- Cylinder ray test ----
-					// Same shared rotation, different translation, plus its own Z-tilt.
+					// Forward chain for cylinder is rY ∘ rZ_cylTilt ∘ rX ∘ local — the shared
+					// Y-spin is OUTSIDE the per-object tilt, so the leaning cylinder visibly
+					// precesses around world Y at the same rate the cube spins (otherwise the
+					// rotational symmetry would hide the spin entirely). Inverse on the ray
+					// is therefore: rX^-1 ∘ rZ_cylTilt^-1 ∘ rY^-1 ∘ world_ray.
 					let yox = ndcXraw - offX_cyl, yoy = ndcYraw - offY_cyl, yoz = 5;
 					let ydx = 0, ydy = 0, ydz = -1;
-					// Inverse cylinder Z-tilt (peel off the per-object outer roll first):
+					// Inverse rY (peel off the outermost shared spin first)
+					{
+						const ox2 = cosY * yox - sinY * yoz;
+						const oz2 = sinY * yox + cosY * yoz;
+						yox = ox2; yoz = oz2;
+						const dx2 = cosY * ydx - sinY * ydz;
+						const dz2 = sinY * ydx + cosY * ydz;
+						ydx = dx2; ydz = dz2;
+					}
+					// Inverse cylinder Z-tilt (per-object outer roll)
 					{
 						const ox2 =  cosCylZ * yox + sinCylZ * yoy;
 						const oy2 = -sinCylZ * yox + cosCylZ * yoy;
@@ -750,7 +771,7 @@
 						const dy2 = -sinCylZ * ydx + cosCylZ * ydy;
 						ydx = dx2; ydy = dy2;
 					}
-					// Inverse rX
+					// Inverse rX (shared tumble) — innermost peel
 					{
 						const oy2 = cosX * yoy + sinX * yoz;
 						const oz2 = -sinX * yoy + cosX * yoz;
@@ -758,15 +779,6 @@
 						const dy2 = cosX * ydy + sinX * ydz;
 						const dz2 = -sinX * ydy + cosX * ydz;
 						ydy = dy2; ydz = dz2;
-					}
-					// Inverse rY
-					{
-						const ox2 = cosY * yox - sinY * yoz;
-						const oz2 = sinY * yox + cosY * yoz;
-						yox = ox2; yoz = oz2;
-						const dx2 = cosY * ydx - sinY * ydz;
-						const dz2 = sinY * ydx + cosY * ydz;
-						ydx = dx2; ydz = dz2;
 					}
 
 					// Vertical-axis cylinder: x^2 + z^2 = R^2 for the side wall, |y| <= H for caps.
@@ -829,27 +841,28 @@
 							// Local outward normal on a vertical-axis cylinder: (x/R, 0, z/R).
 							const nlx = xh / CYL_R;
 							const nlz = zh / CYL_R;
-							// rY: rotates the local axis toward the shared spin orientation.
-							const n1x =  cosY * nlx + sinY * nlz;
-							const n1z = -sinY * nlx + cosY * nlz;
-							// rX: shared tumble.
-							const n2x = n1x;
-							const n2y = -sinX * n1z;
-							const n2z =  cosX * n1z;
+							// Forward chain is rY ∘ rZ_cylTilt ∘ rX, so apply in that order to
+							// take the local normal to world space.
+							// rX: shared tumble (innermost).
+							const n1x = nlx;
+							const n1y = -sinX * nlz;
+							const n1z =  cosX * nlz;
 							// rZ_cyl: per-object outer roll.
-							const nwx = cosCylZ * n2x - sinCylZ * n2y;
-							const nwy = sinCylZ * n2x + cosCylZ * n2y;
-							const nwz = n2z;
+							const n2x = cosCylZ * n1x - sinCylZ * n1y;
+							const n2y = sinCylZ * n1x + cosCylZ * n1y;
+							const n2z = n1z;
+							// rY: shared spin (outermost).
+							const nwx =  cosY * n2x + sinY * n2z;
+							const nwy = n2y;
+							const nwz = -sinY * n2x + cosY * n2z;
 							const raw = Math.max(0, nwx * LIGHT_X + nwy * LIGHT_Y + nwz * LIGHT_Z);
 							const shade = Math.pow(raw, SHADE_GAMMA);
-							// Glyph-band layout: shade 0 -> idx 0, shade 1 -> idx ramp.length-1.
-							// Add the cell's Bayer threshold to the fractional position so cells
-							// at a band boundary stochastically pick between the two adjacent
-							// glyphs based on a regular 4×4 pattern (smooths the transition).
+							// 8×8 Bayer dither at glyph-band boundaries — finer than 4×4 so
+							// the transition reads as a continuous gradient.
 							const exact = shade * (CYL_SIDE_RAMP.length - 1);
 							const baseIdx = Math.floor(exact);
 							const frac = exact - baseIdx;
-							const dith = BAYER_4[(cy & 3) * 4 + (cx & 3)];
+							const dith = BAYER_8[(cy & 7) * 8 + (cx & 7)];
 							const idx = (baseIdx < CYL_SIDE_RAMP.length - 1 && dith < frac)
 								? baseIdx + 1
 								: baseIdx;
