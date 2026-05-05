@@ -555,13 +555,16 @@
 			'%',   // 5: -Z back   — dense diagonal
 		];
 
-		// Cylinder parts: 0 = side wall, 1 = top cap, 2 = bottom cap. One uniform glyph
-		// per part — same "uniform texture per surface" rule as the cube.
-		const CYL_GLYPHS = [
-			'H',   // 0: side wall — vertical strokes, dense
-			'=',   // 1: top cap   — horizontal lines, looking down at top
-			'~',   // 2: bottom cap
-		];
+		// Cylinder caps stay uniform (flat surface = one normal = one glyph). The SIDE WALL
+		// is curved, so a single glyph would make it look flat — we shade it via a 7-step
+		// glyph ramp picked per pixel from the dot product of the wall's outward normal at
+		// the hit point with a fixed world-space light direction.
+		const CYL_TOP_GLYPH    = '=';
+		const CYL_BOTTOM_GLYPH = '~';
+		const CYL_SIDE_RAMP    = '.,;+*H#';   // 7 levels, dim → dense
+		// World-space light direction (mostly horizontal so the side wall's brightest stripe
+		// is on whichever radial side currently faces the light). Pre-normalized.
+		const LIGHT_X = 0.66, LIGHT_Y = 0.20, LIGHT_Z = 0.72;
 
 		// Background fill: a sparse half-density dot pattern stable per cell. Period
 		// chars are scattered over a checker-like layout so the bg has visible texture
@@ -805,7 +808,35 @@
 
 					// ---- Pick whichever hit is closer (or bg) ----
 					if (cylPart >= 0 && (hitFace < 0 || cylT < cubeT)) {
-						out += CYL_GLYPHS[cylPart];
+						if (cylPart === 0) {
+							// Side wall — Lambert shading from the outward normal at the
+							// hit point, taken in cyl-local frame and rotated to world via
+							// the same forward chain rZ_cyl ∘ rX ∘ rY (matching how the
+							// surface itself was built).
+							const xh = yox + cylT * ydx;
+							const zh = yoz + cylT * ydz;
+							// Local outward normal on a vertical-axis cylinder: (x/R, 0, z/R).
+							const nlx = xh / CYL_R;
+							const nlz = zh / CYL_R;
+							// rY: rotates the local axis toward the shared spin orientation.
+							const n1x =  cosY * nlx + sinY * nlz;
+							const n1z = -sinY * nlx + cosY * nlz;
+							// rX: shared tumble.
+							const n2x = n1x;
+							const n2y = -sinX * n1z;
+							const n2z =  cosX * n1z;
+							// rZ_cyl: per-object outer roll.
+							const nwx = cosCylZ * n2x - sinCylZ * n2y;
+							const nwy = sinCylZ * n2x + cosCylZ * n2y;
+							const nwz = n2z;
+							const shade = Math.max(0, nwx * LIGHT_X + nwy * LIGHT_Y + nwz * LIGHT_Z);
+							const idx = Math.min(CYL_SIDE_RAMP.length - 1, Math.floor(shade * CYL_SIDE_RAMP.length));
+							out += CYL_SIDE_RAMP[idx];
+						} else if (cylPart === 1) {
+							out += CYL_TOP_GLYPH;
+						} else {
+							out += CYL_BOTTOM_GLYPH;
+						}
 					} else if (hitFace >= 0) {
 						out += FACE_GLYPHS[hitFace];
 					} else {
