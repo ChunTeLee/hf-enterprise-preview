@@ -556,12 +556,23 @@
 		];
 
 		// Cylinder caps stay uniform (flat surface = one normal = one glyph). The SIDE WALL
-		// is curved, so a single glyph would make it look flat — we shade it via a 7-step
-		// glyph ramp picked per pixel from the dot product of the wall's outward normal at
-		// the hit point with a fixed world-space light direction.
+		// is curved, so a single glyph would make it look flat — we shade it per pixel.
 		const CYL_TOP_GLYPH    = '=';
 		const CYL_BOTTOM_GLYPH = '~';
-		const CYL_SIDE_RAMP    = '.,;+*H#';   // 7 levels, dim → dense
+		// Longer ramp = smaller jumps between adjacent glyphs (10 levels instead of 7).
+		const CYL_SIDE_RAMP    = '.,:;+=*xH#';
+		// Gamma < 1 expands the mid-tone range so the gradient doesn't bunch into a few
+		// levels — perceptually smoother spread.
+		const SHADE_GAMMA      = 0.7;
+		// Bayer 4×4 ordered dither: each cell has a fixed threshold in [0,1). At a glyph-
+		// band boundary, cells with threshold < frac get the brighter glyph; the result is
+		// a regular crosshatch transition between bands instead of a hard edge.
+		const BAYER_4 = new Float32Array([
+			0/16,  8/16,  2/16, 10/16,
+			12/16,  4/16, 14/16,  6/16,
+			3/16, 11/16,  1/16,  9/16,
+			15/16,  7/16, 13/16,  5/16,
+		]);
 		// World-space light direction (mostly horizontal so the side wall's brightest stripe
 		// is on whichever radial side currently faces the light). Pre-normalized.
 		const LIGHT_X = 0.66, LIGHT_Y = 0.20, LIGHT_Z = 0.72;
@@ -829,8 +840,19 @@
 							const nwx = cosCylZ * n2x - sinCylZ * n2y;
 							const nwy = sinCylZ * n2x + cosCylZ * n2y;
 							const nwz = n2z;
-							const shade = Math.max(0, nwx * LIGHT_X + nwy * LIGHT_Y + nwz * LIGHT_Z);
-							const idx = Math.min(CYL_SIDE_RAMP.length - 1, Math.floor(shade * CYL_SIDE_RAMP.length));
+							const raw = Math.max(0, nwx * LIGHT_X + nwy * LIGHT_Y + nwz * LIGHT_Z);
+							const shade = Math.pow(raw, SHADE_GAMMA);
+							// Glyph-band layout: shade 0 -> idx 0, shade 1 -> idx ramp.length-1.
+							// Add the cell's Bayer threshold to the fractional position so cells
+							// at a band boundary stochastically pick between the two adjacent
+							// glyphs based on a regular 4×4 pattern (smooths the transition).
+							const exact = shade * (CYL_SIDE_RAMP.length - 1);
+							const baseIdx = Math.floor(exact);
+							const frac = exact - baseIdx;
+							const dith = BAYER_4[(cy & 3) * 4 + (cx & 3)];
+							const idx = (baseIdx < CYL_SIDE_RAMP.length - 1 && dith < frac)
+								? baseIdx + 1
+								: baseIdx;
 							out += CYL_SIDE_RAMP[idx];
 						} else if (cylPart === 1) {
 							out += CYL_TOP_GLYPH;
