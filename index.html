@@ -541,19 +541,27 @@
 		// instead of both spinning around perfect Y.
 		const CUBE_TILT_Z = -12 * Math.PI / 180;
 		const CYL_TILT_Z  = +18 * Math.PI / 180;
+		// Per-cylinder X-tilt OFFSET (added to the shared tumble). Tips the cylinder
+		// strongly forward toward the camera so the bottom cap is always visible
+		// regardless of where the rotational spin currently is.
+		const CYL_X_TILT  = -28 * Math.PI / 180;
 
 		// Each face has a single, fixed glyph — uniform texture per face, no within-face
 		// variation. Glyphs picked for HIGH contrast between adjacent faces: pair a dense
 		// glyph (#, %) with a sparse one (-, :) on opposite-density faces, plus distinct
 		// shapes (round o vs angular #) so the cube reads as 3D from glyph identity alone.
 		const FACE_GLYPHS = [
-			'o',   // 0: +X right  — round
-			'O',   // 1: -X left   — denser round (rarely paired with right)
-			'#',   // 2: +Y top    — heavy lattice (top usually brightest area)
-			':',   // 3: -Y bottom — sparse, distinct from top
-			'+',   // 4: +Z front  — angular cross
-			'%',   // 5: -Z back   — dense diagonal
+			'=',   // 0: +X right  — medium horizontal bars
+			'=',   // 1: -X left   — same (sides never visible together)
+			'.',   // 2: +Y top    — very sparse, light at top
+			',',   // 3: -Y bottom — very sparse but distinct shape
+			'@',   // 4: +Z front  — very dense filled feel
+			'@',   // 5: -Z back   — same (back rarely visible anyway)
 		];
+		// At any rotation the cube shows ≤3 faces — one from each axis pair. With this
+		// mapping any visible trio = one sparse + one medium + one dense glyph, which is
+		// the maximum 3-way density contrast achievable in plain ASCII.
+
 
 		// Cylinder caps stay uniform (flat surface = one normal = one glyph). The SIDE WALL
 		// is curved, so a single glyph would make it look flat — we shade it per pixel.
@@ -581,9 +589,10 @@
 			15/64, 47/64,  7/64, 39/64, 13/64, 45/64,  5/64, 37/64,
 			63/64, 31/64, 55/64, 23/64, 61/64, 29/64, 53/64, 21/64,
 		]);
-		// World-space light direction (mostly horizontal so the side wall's brightest stripe
-		// is on whichever radial side currently faces the light). Pre-normalized.
-		const LIGHT_X = 0.66, LIGHT_Y = 0.20, LIGHT_Z = 0.72;
+		// World-space light direction. LIGHT_X is NEGATIVE so the brightest part of the
+		// cylinder side wall sits on its LEFT — the side that faces the centered title.
+		// Pre-normalized.
+		const LIGHT_X = -0.66, LIGHT_Y = 0.20, LIGHT_Z = 0.72;
 
 		// Background fill: a sparse half-density dot pattern stable per cell. Period
 		// chars are scattered over a checker-like layout so the bg has visible texture
@@ -649,6 +658,10 @@
 			// Per-object Z-axis tilt — constant (doesn't animate), pre-computed once per frame.
 			const cosCubeZ = Math.cos(CUBE_TILT_Z), sinCubeZ = Math.sin(CUBE_TILT_Z);
 			const cosCylZ  = Math.cos(CYL_TILT_Z),  sinCylZ  = Math.sin(CYL_TILT_Z);
+			// Cylinder gets its own X-tilt: the shared tumble plus a constant forward tip
+			// so the bottom cap stays camera-facing through the whole spin.
+			const tiltX_cyl = tiltX + CYL_X_TILT;
+			const cosX_cyl  = Math.cos(tiltX_cyl), sinX_cyl = Math.sin(tiltX_cyl);
 			// No per-frame Lambert shading — each face uses its fixed FACE_GLYPHS entry.
 
 			const screenAspect = (cols * charAspect) / rows;
@@ -746,23 +759,18 @@
 					}
 
 					// ---- Cylinder ray test ----
-					// Forward chain for cylinder is rY ∘ rZ_cylTilt ∘ rX ∘ local — the shared
-					// Y-spin is OUTSIDE the per-object tilt, so the leaning cylinder visibly
-					// precesses around world Y at the same rate the cube spins (otherwise the
-					// rotational symmetry would hide the spin entirely). Inverse on the ray
-					// is therefore: rX^-1 ∘ rZ_cylTilt^-1 ∘ rY^-1 ∘ world_ray.
+					// Forward chain for cylinder is rZ_cylTilt ∘ rX_cyl ∘ rY ∘ local — the
+					// per-object tilts are OUTSIDE the shared spin. Result: cylinder spins
+					// around its own (tilted) Y axis. Spin doesn't move the bottom-cap normal
+					// (Y axis is invariant under rY), so once the cylinder is tipped forward
+					// by CYL_X_TILT the bottom is permanently camera-facing. The spin still
+					// reads visually as the bright stripe sliding around the side wall (light
+					// is fixed in world, surface rotates underneath it).
+					// Inverse on the ray: rY^-1 ∘ rX_cyl^-1 ∘ rZ_cylTilt^-1 ∘ world_ray —
+					// applied in that order: peel rZ_cylTilt first, then rX_cyl, then rY.
 					let yox = ndcXraw - offX_cyl, yoy = ndcYraw - offY_cyl, yoz = 5;
 					let ydx = 0, ydy = 0, ydz = -1;
-					// Inverse rY (peel off the outermost shared spin first)
-					{
-						const ox2 = cosY * yox - sinY * yoz;
-						const oz2 = sinY * yox + cosY * yoz;
-						yox = ox2; yoz = oz2;
-						const dx2 = cosY * ydx - sinY * ydz;
-						const dz2 = sinY * ydx + cosY * ydz;
-						ydx = dx2; ydz = dz2;
-					}
-					// Inverse cylinder Z-tilt (per-object outer roll)
+					// Inverse cylinder Z-tilt (outermost peel)
 					{
 						const ox2 =  cosCylZ * yox + sinCylZ * yoy;
 						const oy2 = -sinCylZ * yox + cosCylZ * yoy;
@@ -771,14 +779,23 @@
 						const dy2 = -sinCylZ * ydx + cosCylZ * ydy;
 						ydx = dx2; ydy = dy2;
 					}
-					// Inverse rX (shared tumble) — innermost peel
+					// Inverse rX_cyl (per-cylinder tumble + forward tip)
 					{
-						const oy2 = cosX * yoy + sinX * yoz;
-						const oz2 = -sinX * yoy + cosX * yoz;
+						const oy2 = cosX_cyl * yoy + sinX_cyl * yoz;
+						const oz2 = -sinX_cyl * yoy + cosX_cyl * yoz;
 						yoy = oy2; yoz = oz2;
-						const dy2 = cosX * ydy + sinX * ydz;
-						const dz2 = -sinX * ydy + cosX * ydz;
+						const dy2 = cosX_cyl * ydy + sinX_cyl * ydz;
+						const dz2 = -sinX_cyl * ydy + cosX_cyl * ydz;
 						ydy = dy2; ydz = dz2;
+					}
+					// Inverse rY (innermost peel — shared spin around cylinder's own Y axis)
+					{
+						const ox2 = cosY * yox - sinY * yoz;
+						const oz2 = sinY * yox + cosY * yoz;
+						yox = ox2; yoz = oz2;
+						const dx2 = cosY * ydx - sinY * ydz;
+						const dz2 = sinY * ydx + cosY * ydz;
+						ydx = dx2; ydz = dz2;
 					}
 
 					// Vertical-axis cylinder: x^2 + z^2 = R^2 for the side wall, |y| <= H for caps.
@@ -841,20 +858,20 @@
 							// Local outward normal on a vertical-axis cylinder: (x/R, 0, z/R).
 							const nlx = xh / CYL_R;
 							const nlz = zh / CYL_R;
-							// Forward chain is rY ∘ rZ_cylTilt ∘ rX, so apply in that order to
-							// take the local normal to world space.
-							// rX: shared tumble (innermost).
-							const n1x = nlx;
-							const n1y = -sinX * nlz;
-							const n1z =  cosX * nlz;
-							// rZ_cyl: per-object outer roll.
-							const n2x = cosCylZ * n1x - sinCylZ * n1y;
-							const n2y = sinCylZ * n1x + cosCylZ * n1y;
-							const n2z = n1z;
-							// rY: shared spin (outermost).
-							const nwx =  cosY * n2x + sinY * n2z;
-							const nwy = n2y;
-							const nwz = -sinY * n2x + cosY * n2z;
+							// Forward chain is rZ_cylTilt ∘ rX_cyl ∘ rY, so apply in that order
+							// to take the local normal to world space.
+							// rY: shared spin (innermost) — rotates xz, leaves y.
+							const n1x =  cosY * nlx + sinY * nlz;
+							const n1y = 0;
+							const n1z = -sinY * nlx + cosY * nlz;
+							// rX_cyl: per-cylinder tumble + forward tip.
+							const n2x = n1x;
+							const n2y = cosX_cyl * n1y - sinX_cyl * n1z;
+							const n2z = sinX_cyl * n1y + cosX_cyl * n1z;
+							// rZ_cyl: per-object outer roll (outermost).
+							const nwx = cosCylZ * n2x - sinCylZ * n2y;
+							const nwy = sinCylZ * n2x + cosCylZ * n2y;
+							const nwz = n2z;
 							const raw = Math.max(0, nwx * LIGHT_X + nwy * LIGHT_Y + nwz * LIGHT_Z);
 							const shade = Math.pow(raw, SHADE_GAMMA);
 							// 8×8 Bayer dither at glyph-band boundaries — finer than 4×4 so
